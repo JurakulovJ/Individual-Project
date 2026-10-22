@@ -1,0 +1,51 @@
+{
+  "destinations": [
+    {
+      "id": "dest-tokyo",
+      "city": "Tokyo",
+      "country": "Japan",
+      "airport_code": "HND",
+      "avg_daily_budget": 140,
+      "tags": ["culture", "food", "technology", "romantic"]
+    },
+    {
+      "id": "dest-paris",
+      "city": "Paris",
+      "country": "France",
+      "airport_code": "CDG",
+      "avg_daily_budget": 180,
+      "tags": ["art", "romantic", "history", "fashion"]
+    },
+    {
+      "id": "dest-bali",
+      "city": "Bali",
+      "country": "Indonesia",
+      "airport_code": "DPS",
+      "avg_daily_budget": 65,
+      "tags": ["nature", "beaches", "relaxation", "budget-friendly"]
+    }
+  ],
+  "mock_flights": [
+    {
+      "flight_id": "FL-001",
+      "carrier": "All Nippon Airways",
+      "origin": "TAS",
+      "destination": "HND",
+      "price": 620.0,
+      "currency": "USD",
+      "duration": "8h 15m",
+      "stops": 1
+    }
+  ],
+  "mock_hotels": [
+    {
+      "hotel_id": "HT-101",
+      "name": "Shinjuku Granbell Hotel",
+      "city": "Tokyo",
+      "price_per_night": 125.0,
+      "currency": "USD",
+      "rating": 4.6,
+      "amenities": ["Wi-Fi", "Rooftop Bar", "Metro Access"]
+    }
+  ]
+}
