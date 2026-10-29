@@ -19,8 +19,28 @@ import {
   searchHotelLocations,
   autocompleteFlightPlaces,
 } from '../../services/api';
-import AITravelAssistant from '../ai-assistant/AITravelAssistant';
 import DatePickerPopover from './DatePickerPopover';
+
+const AI_QUICK_CHIPS = [
+  {
+    label: 'Нью-Йорк • 7 ночей • Отель 5★',
+    city: 'Нью-Йорк, США',
+    prompt:
+      'Хочу в Нью-Йорк на 7 ночей в ноябре для 2 взрослых, отель 5★ в Манхэттене с бесплатной отменой и прямой перелёт',
+  },
+  {
+    label: 'Барселона + Лондон • Комбинированный тур',
+    city: 'Барселона, Испания',
+    prompt:
+      'Комбинированный тур Барселона + Лондон на 7 ночей для 2 взрослых, отели 5★ с завтраком, перелёт и трансфер',
+  },
+  {
+    label: 'Дубай • Всё включено • Прямой рейс',
+    city: 'Дубай, ОАЭ',
+    prompt:
+      'Тур в Дубай на 7 ночей для 2 взрослых, отель 5★ Всё включено на первой линии, прямой рейс и индивидуальный трансфер',
+  },
+];
 
 const CITIZENSHIPS = [
   { code: 'UZ', label: 'Узбекистан' },
@@ -55,8 +75,10 @@ export default function HeroSearch({
   searchParams,
   setSearchParams,
   onTriggerSearch,
-  onApplyAIBundle,
-  onApplyAISuggestedFilters,
+  aiPrompt,
+  setAiPrompt,
+  onRunAISearch,
+  isGeneratingAI,
 }) {
   const [destinations, setDestinations] = useState([]);
   const [hotelLocationSuggestions, setHotelLocationSuggestions] = useState([]);
@@ -67,6 +89,7 @@ export default function HeroSearch({
   const [showFlightOriginDropdown, setShowFlightOriginDropdown] = useState(false);
   const [showFlightDestDropdown, setShowFlightDestDropdown] = useState(false);
   const [showFlightPassengers, setShowFlightPassengers] = useState(false);
+  const [showAiGuestsBudget, setShowAiGuestsBudget] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState(null);
 
   // Load live destinations from GET /api/v1/plan/destinations
@@ -145,8 +168,6 @@ export default function HeroSearch({
     { id: 'flights', label: 'Авиабилеты', icon: Plane },
     { id: 'transfers', label: 'Трансферы', icon: Bus },
     { id: 'car-rental', label: 'Аренда авто', icon: Car },
-    { id: 'trains', label: 'Ж/д билеты', icon: TrainFront },
-    { id: 'offline', label: 'Offline-запросы', icon: Users, external: true },
   ];
 
   const starOptions = [
@@ -222,8 +243,8 @@ export default function HeroSearch({
       </div>
 
       <div className="relative z-10 max-w-[1220px] mx-auto px-4 pt-5 pb-8">
-        {/* Service Switcher Bar + Signature AI Travel Tab */}
-        <div className="flex items-center gap-2.5 flex-wrap mb-4">
+        {/* Service Switcher Bar + Signature AI Travel Tab (Single Horizontal Row) */}
+        <div className="flex items-center gap-2.5 flex-nowrap overflow-x-auto no-scrollbar mb-4">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeVertical === tab.id;
@@ -232,56 +253,48 @@ export default function HeroSearch({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveVertical(tab.id)}
-                className={`h-[44px] px-4 rounded-xl flex items-center gap-2.5 text-[14px] font-medium transition-all shadow-sm ${isActive
-                  ? 'bg-[#1C2026] text-white shadow-md'
-                  : 'bg-white/90 hover:bg-white text-[#111827]'
-                  }`}
+                className={`h-[44px] px-4 rounded-xl flex items-center gap-2.5 text-[14px] font-medium transition-all shadow-sm whitespace-nowrap shrink-0 ${
+                  isActive
+                    ? 'bg-[#1C2026] text-white shadow-md'
+                    : 'bg-white/90 hover:bg-white text-[#111827]'
+                }`}
               >
                 <Icon
-                  className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#4B5563]'
-                    }`}
+                  className={`w-4 h-4 shrink-0 ${
+                    isActive ? 'text-white' : 'text-[#4B5563]'
+                  }`}
                 />
                 <span>{tab.label}</span>
-                {tab.external && (
-                  <ExternalLink className="w-3.5 h-3.5 text-gray-400 ml-0.5" />
-                )}
               </button>
             );
           })}
 
-          {/* Signature Killer Feature: ✨ AI Travel Ассистент */}
+          {/* Signature Killer Feature: ✨ Собрать тур */}
           <button
             type="button"
             onClick={() => setActiveVertical('ai-planner')}
-            className={`h-[44px] px-4 rounded-xl flex items-center gap-2 text-[14px] font-bold transition-all relative ${activeVertical === 'ai-planner'
-              ? 'bg-[#1C2026] text-white ring-2 ring-[#7C3AED] shadow-lg'
-              : 'bg-white text-[#111827] hover:bg-purple-50 border-2 border-[#7C3AED]/80 shadow-sm'
-              }`}
+            className={`h-[44px] px-5 rounded-xl flex items-center gap-2 text-[14px] text-white font-semibold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-md shadow-purple-500/25 transition-all whitespace-nowrap shrink-0 ${
+              activeVertical === 'ai-planner'
+                ? 'ring-2 ring-white shadow-lg shadow-purple-600/40 scale-[1.01]'
+                : ''
+            }`}
           >
-            <Sparkles
-              className={`w-4 h-4 ${activeVertical === 'ai-planner'
-                ? 'text-[#F6D04D]'
-                : 'text-[#7C3AED]'
-                }`}
-            />
-            <span>AI Поиск / Собрать тур</span>
-            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider rounded bg-[#7C3AED] text-white leading-none">
-              AI
-            </span>
+            <Sparkles className="w-4 h-4 text-white shrink-0" />
+            <span>Собрать тур</span>
           </button>
         </div>
 
         {/* White Search Card Container */}
-        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6">
+        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-4 sm:p-6">
           {/* =============================================================== */}
           {/* STATE 1: ОТЕЛИ И КВАРТИРЫ (SCREENSHOT 1)                        */}
           {/* =============================================================== */}
           {activeVertical === 'hotels' && (
             <div className="space-y-4">
               {/* Row 1: Destination, Dates, Guests, Search CTA */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
                 {/* Destination Input (5 cols) */}
-                <div className="lg:col-span-5 relative">
+                <div className="md:col-span-2 lg:col-span-5 relative">
                   <div
                     onClick={() => setShowDestDropdown(true)}
                     className="h-[52px] px-3.5 py-1.5 rounded-xl border border-[#D1D5DB] hover:border-gray-400 focus-within:border-[#111827] bg-white flex flex-col justify-center cursor-text transition-colors"
@@ -307,13 +320,11 @@ export default function HeroSearch({
                     />
                   </div>
 
-                  {/* Live Destination Autocomplete from Booking.com Adapter (/api/v1/hotels/locations) */}
+                  {/* Destination Autocomplete Dropdown */}
                   {showDestDropdown && (
                     <div className="absolute left-0 right-0 top-[56px] bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-40 max-h-72 overflow-y-auto">
                       <div className="px-3.5 py-1 text-[11px] font-semibold text-gray-400 uppercase flex items-center justify-between">
-                        <span>
-                          Направления (Booking.com /api/v1/hotels/locations)
-                        </span>
+                        <span>Популярные направления</span>
                         <button
                           type="button"
                           onClick={() => setShowDestDropdown(false)}
@@ -332,7 +343,6 @@ export default function HeroSearch({
                             d.name_ru ||
                             `${d.city_ru || d.city}, ${d.country_ru || d.country}`,
                           hotels_count: d.hotels_count || 51,
-                          source: 'mock_fallback',
                         }))
                       ).map((loc) => {
                         const displayName =
@@ -359,20 +369,10 @@ export default function HeroSearch({
                                   {displayName}
                                 </div>
                                 <div className="text-[11px] text-gray-400">
-                                  {loc.hotels_count || 51} отелей • dest_id: {loc.dest_id}
+                                  {loc.hotels_count || 51} вариантов размещения
                                 </div>
                               </div>
                             </div>
-                            <span
-                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${loc.source === 'booking_live'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-gray-100 text-gray-500'
-                                }`}
-                            >
-                              {loc.source === 'booking_live'
-                                ? 'Booking Live'
-                                : 'Catalog'}
-                            </span>
                           </button>
                         );
                       })}
@@ -381,11 +381,18 @@ export default function HeroSearch({
                 </div>
 
                 {/* Joined Check-in / Check-out Datepicker (3 cols) */}
-                <div className="lg:col-span-3 relative">
-                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] hover:border-gray-400 bg-white overflow-hidden divide-x divide-[#D1D5DB]">
+                <div
+                  className="md:col-span-2 lg:col-span-3 relative"
+                  data-datepicker-trigger="true"
+                >
+                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] hover:border-gray-400 bg-white divide-x divide-[#D1D5DB]">
                     <div
                       onClick={() => setActiveDatePicker('hotel-start')}
-                      className="px-3.5 py-1.5 flex flex-col justify-center cursor-pointer hover:bg-gray-50/70"
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${
+                        activeDatePicker === 'hotel-start'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
                     >
                       <span className="text-[11px] text-[#6B7280] leading-tight">
                         Заезд
@@ -400,7 +407,11 @@ export default function HeroSearch({
                     </div>
                     <div
                       onClick={() => setActiveDatePicker('hotel-end')}
-                      className="px-3.5 py-1.5 flex flex-col justify-center cursor-pointer hover:bg-gray-50/70"
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-r-xl ${
+                        activeDatePicker === 'hotel-end'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
                     >
                       <span className="text-[11px] text-[#6B7280] leading-tight">
                         Выезд
@@ -422,12 +433,26 @@ export default function HeroSearch({
                       activeField={
                         activeDatePicker === 'hotel-end' ? 'end' : 'start'
                       }
-                      onSelectRange={(checkInStr, checkOutStr, nightsCount) => {
+                      initialStartIso={searchParams.checkInIso || '2026-10-31'}
+                      initialEndIso={searchParams.checkOutIso || '2026-11-01'}
+                      onSwitchField={(nextField) =>
+                        setActiveDatePicker(
+                          nextField === 'end' ? 'hotel-end' : 'hotel-start'
+                        )
+                      }
+                      onSelectCheckIn={(formattedStr, isoStr) => {
                         setSearchParams((prev) => ({
                           ...prev,
-                          checkIn: checkInStr,
-                          checkOut: checkOutStr,
-                          nights: nightsCount || 7,
+                          checkIn: formattedStr,
+                          checkInIso: isoStr,
+                        }));
+                      }}
+                      onSelectCheckOut={(formattedStr, isoStr, nightsCount) => {
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          checkOut: formattedStr,
+                          checkOutIso: isoStr,
+                          nights: nightsCount || 1,
                         }));
                       }}
                       onClose={() => setActiveDatePicker(null)}
@@ -436,7 +461,7 @@ export default function HeroSearch({
                 </div>
 
                 {/* Guests & Rooms Selector (2 cols) */}
-                <div className="lg:col-span-2 relative">
+                <div className="md:col-span-1 lg:col-span-2 relative">
                   <button
                     type="button"
                     onClick={() => setShowGuestsPopover(!showGuestsPopover)}
@@ -564,7 +589,7 @@ export default function HeroSearch({
                 </div>
 
                 {/* Primary CTA Button Найти (2 cols) */}
-                <div className="lg:col-span-2">
+                <div className="md:col-span-1 lg:col-span-2">
                   <button
                     type="button"
                     onClick={() => onTriggerSearch('hotels')}
@@ -613,8 +638,8 @@ export default function HeroSearch({
                 </div>
 
                 {/* Star Rating Segmented Multi-select Bar (8 cols) */}
-                <div className="lg:col-span-8">
-                  <div className="h-[48px] rounded-xl border border-[#D1D5DB] bg-white grid grid-cols-5 divide-x divide-[#E5E7EB] overflow-hidden">
+                <div className="lg:col-span-8 overflow-x-auto no-scrollbar">
+                  <div className="h-[48px] min-w-[420px] sm:min-w-0 rounded-xl border border-[#D1D5DB] bg-white grid grid-cols-5 divide-x divide-[#E5E7EB] overflow-hidden">
                     {starOptions.map((star) => {
                       const active = searchParams.stars.includes(star.value);
                       return (
@@ -664,7 +689,7 @@ export default function HeroSearch({
                 </div>
 
                 {/* Early Check-in Dropdown */}
-                <div className="h-[48px] w-[195px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
+                <div className="h-[48px] w-full sm:w-[195px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
                   <span className="text-[10px] text-[#6B7280] leading-tight">
                     Ранний заезд
                   </span>
@@ -687,7 +712,7 @@ export default function HeroSearch({
                 </div>
 
                 {/* Late Check-out Dropdown */}
-                <div className="h-[48px] w-[195px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
+                <div className="h-[48px] w-full sm:w-[195px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
                   <span className="text-[10px] text-[#6B7280] leading-tight">
                     Поздний выезд
                   </span>
@@ -736,7 +761,7 @@ export default function HeroSearch({
           {activeVertical === 'flights' && (
             <div className="space-y-4">
               {/* Top Radio Group */}
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 {[
                   { id: 'one-way', label: 'Только туда' },
                   { id: 'round-trip', label: 'Туда-обратно' },
@@ -772,9 +797,9 @@ export default function HeroSearch({
               </div>
 
               {/* Middle Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
                 {/* Origin & Destination Dual Input with Swap Button */}
-                <div className="lg:col-span-6 relative grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB]">
+                <div className="md:col-span-2 lg:col-span-6 relative grid grid-cols-1 sm:grid-cols-2 h-auto sm:h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-y sm:divide-y-0 sm:divide-x divide-[#E5E7EB]">
                   <div className="px-3.5 py-1.5 flex flex-col justify-center relative">
                     <span className="text-[11px] text-[#6B7280] leading-tight">
                       Откуда
@@ -800,9 +825,8 @@ export default function HeroSearch({
                     />
                     {showFlightOriginDropdown && (
                       <div className="absolute left-0 top-[54px] w-80 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-40 max-h-64 overflow-y-auto">
-                        <div className="px-3 py-1 text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50/70 flex items-center justify-between">
-                          <span>Aviasales IATA Autocomplete</span>
-                          <span className="font-mono">places2</span>
+                        <div className="px-3 py-1 text-[10px] font-semibold uppercase text-gray-400">
+                          Города и аэропорты
                         </div>
                         {(flightOriginSuggestions.length > 0
                           ? flightOriginSuggestions
@@ -874,9 +898,8 @@ export default function HeroSearch({
                     />
                     {showFlightDestDropdown && (
                       <div className="absolute left-0 top-[54px] w-80 bg-white rounded-xl shadow-xl border border-gray-200 py-1.5 z-40 max-h-64 overflow-y-auto">
-                        <div className="px-3 py-1 text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50/70 flex items-center justify-between">
-                          <span>Aviasales IATA Autocomplete</span>
-                          <span className="font-mono">places2</span>
+                        <div className="px-3 py-1 text-[10px] font-semibold uppercase text-gray-400">
+                          Города и аэропорты
                         </div>
                         {(flightDestSuggestions.length > 0
                           ? flightDestSuggestions
@@ -918,11 +941,18 @@ export default function HeroSearch({
                 </div>
 
                 {/* Departure & Return Dates (3 cols) */}
-                <div className="lg:col-span-3 relative">
-                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB] overflow-hidden">
+                <div
+                  className="md:col-span-1 lg:col-span-3 relative"
+                  data-datepicker-trigger="true"
+                >
+                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB]">
                     <div
                       onClick={() => setActiveDatePicker('flight-start')}
-                      className="px-3.5 py-1.5 flex flex-col justify-center cursor-pointer hover:bg-gray-50/70"
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${
+                        activeDatePicker === 'flight-start'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
                     >
                       <span className="text-[11px] text-[#6B7280] leading-tight">
                         Туда
@@ -941,7 +971,11 @@ export default function HeroSearch({
                           setActiveDatePicker('flight-end');
                         }
                       }}
-                      className="px-3.5 py-1.5 flex flex-col justify-center cursor-pointer hover:bg-gray-50/70"
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-r-xl ${
+                        activeDatePicker === 'flight-end'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
                     >
                       <span className="text-[11px] text-[#6B7280] leading-tight">
                         Обратно
@@ -972,11 +1006,35 @@ export default function HeroSearch({
                       activeField={
                         activeDatePicker === 'flight-end' ? 'end' : 'start'
                       }
-                      onSelectRange={(depStr, retStr) => {
+                      initialStartIso={searchParams.flightDepIso || '2026-11-05'}
+                      initialEndIso={searchParams.flightRetIso || '2026-11-12'}
+                      onSwitchField={(nextField) => {
+                        if (
+                          nextField === 'end' &&
+                          searchParams.flightTripType === 'one-way'
+                        ) {
+                          setActiveDatePicker(null);
+                        } else {
+                          setActiveDatePicker(
+                            nextField === 'end' ? 'flight-end' : 'flight-start'
+                          );
+                        }
+                      }}
+                      onSelectCheckIn={(depStr, depIso) => {
                         setSearchParams((prev) => ({
                           ...prev,
                           flightDepDate: depStr,
+                          flightDepIso: depIso,
+                        }));
+                        if (searchParams.flightTripType === 'one-way') {
+                          setActiveDatePicker(null);
+                        }
+                      }}
+                      onSelectCheckOut={(retStr, retIso) => {
+                        setSearchParams((prev) => ({
+                          ...prev,
                           flightRetDate: retStr,
+                          flightRetIso: retIso,
                         }));
                       }}
                       onClose={() => setActiveDatePicker(null)}
@@ -985,7 +1043,7 @@ export default function HeroSearch({
                 </div>
 
                 {/* Passengers Selector (3 cols) */}
-                <div className="lg:col-span-3 relative">
+                <div className="md:col-span-1 lg:col-span-3 relative">
                   <button
                     type="button"
                     onClick={() =>
@@ -1059,34 +1117,36 @@ export default function HeroSearch({
               </div>
 
               {/* Bottom Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
-                <div className="lg:col-span-6 h-[50px] rounded-xl border border-[#D1D5DB] bg-white grid grid-cols-4 divide-x divide-[#E5E7EB] overflow-hidden">
-                  {['Эконом', 'Премиум', 'Бизнес', 'Первый'].map((cabin) => {
-                    const active = searchParams.cabinClass === cabin;
-                    return (
-                      <button
-                        key={cabin}
-                        type="button"
-                        onClick={() =>
-                          setSearchParams({
-                            ...searchParams,
-                            cabinClass: cabin,
-                          })
-                        }
-                        className="relative h-full text-[14px] text-[#111827] hover:bg-gray-50 flex items-center justify-center transition-colors"
-                      >
-                        <span className={active ? 'font-medium' : 'font-normal'}>
-                          {cabin}
-                        </span>
-                        {active && (
-                          <span className="absolute bottom-1.5 left-4 right-4 h-[3px] bg-[#F5C400] rounded-full" />
-                        )}
-                      </button>
-                    );
-                  })}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+                <div className="md:col-span-2 lg:col-span-6 overflow-x-auto no-scrollbar">
+                  <div className="h-[50px] min-w-[320px] sm:min-w-0 rounded-xl border border-[#D1D5DB] bg-white grid grid-cols-4 divide-x divide-[#E5E7EB] overflow-hidden">
+                    {['Эконом', 'Премиум', 'Бизнес', 'Первый'].map((cabin) => {
+                      const active = searchParams.cabinClass === cabin;
+                      return (
+                        <button
+                          key={cabin}
+                          type="button"
+                          onClick={() =>
+                            setSearchParams({
+                              ...searchParams,
+                              cabinClass: cabin,
+                            })
+                          }
+                          className="relative h-full text-[13px] sm:text-[14px] text-[#111827] hover:bg-gray-50 flex items-center justify-center transition-colors"
+                        >
+                          <span className={active ? 'font-medium' : 'font-normal'}>
+                            {cabin}
+                          </span>
+                          {active && (
+                            <span className="absolute bottom-1.5 left-4 right-4 h-[3px] bg-[#F5C400] rounded-full" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="lg:col-span-3 h-[50px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
+                <div className="md:col-span-1 lg:col-span-3 h-[50px] px-3.5 py-1 rounded-xl border border-[#D1D5DB] bg-white flex flex-col justify-center">
                   <span className="text-[11px] text-[#6B7280] leading-tight">
                     Авиакомпания
                   </span>
@@ -1108,7 +1168,7 @@ export default function HeroSearch({
                   </select>
                 </div>
 
-                <div className="lg:col-span-3">
+                <div className="md:col-span-1 lg:col-span-3">
                   <button
                     type="button"
                     onClick={() => onTriggerSearch('flights')}
@@ -1207,11 +1267,18 @@ export default function HeroSearch({
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
-                <div className="lg:col-span-3 relative">
-                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB] overflow-hidden">
+                <div
+                  className="lg:col-span-3 relative"
+                  data-datepicker-trigger="true"
+                >
+                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB]">
                     <div
                       onClick={() => setActiveDatePicker('transfer-date')}
-                      className="px-3.5 py-1.5 flex flex-col justify-center cursor-pointer hover:bg-gray-50/70"
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${
+                        activeDatePicker === 'transfer-date'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
                     >
                       <span className="text-[11px] text-[#6B7280] leading-tight">
                         Когда
@@ -1245,10 +1312,14 @@ export default function HeroSearch({
                   {activeDatePicker === 'transfer-date' && (
                     <DatePickerPopover
                       mode="transfer"
-                      onSelectSingle={(dateStr) => {
+                      initialStartIso={
+                        searchParams.transferDateIso || '2026-10-30'
+                      }
+                      onSelectSingle={(dateStr, dateIso) => {
                         setSearchParams((prev) => ({
                           ...prev,
                           transferDate: dateStr,
+                          transferDateIso: dateIso,
                         }));
                       }}
                       onClose={() => setActiveDatePicker(null)}
@@ -1339,15 +1410,274 @@ export default function HeroSearch({
             )}
 
           {/* =============================================================== */}
-          {/* STATE 5: ✨ AI TRAVEL MODE (LIVE BACKEND INTEGRATION)            */}
+          {/* STATE 5: ✨ СОБРАТЬ ТУР (CLEAN RATEHAWK-CONSISTENT SEARCH CARD) */}
           {/* =============================================================== */}
           {activeVertical === 'ai-planner' && (
-            <AITravelAssistant
-              onApplyBundle={onApplyAIBundle}
-              onApplyFiltersToSearch={onApplyAISuggestedFilters}
-              onJumpToHotels={() => onTriggerSearch('hotels')}
-              onJumpToFlights={() => onTriggerSearch('flights')}
-            />
+            <div className="space-y-4">
+              {/* Row 1: Conversational AI Prompt Input (Clean & Minimal) */}
+              <div className="rounded-xl border border-gray-300 focus-within:border-[#F6D04D] focus-within:ring-2 focus-within:ring-[#F6D04D]/40 bg-white px-4 py-3 transition-all">
+                <label className="text-xs text-gray-400 block mb-1">
+                  Опишите вашу идеальную поездку
+                </label>
+                <textarea
+                  rows={2}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Например: Хочу в Нью-Йорк или Барселону на 7 ночей в ноябре для 2 взрослых, отель 5★ с завтраком и прямой перелёт..."
+                  className="w-full text-[14px] text-[#111827] placeholder-[#6B7280] focus:outline-none bg-transparent resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* Row 2: Standard RateHawk-Style Quick Selectors + Primary CTA (Single Row) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
+                {/* 1. Куда / Направление (3 cols) */}
+                <div className="md:col-span-1 lg:col-span-3 h-[52px] px-3.5 py-1.5 rounded-xl border border-[#D1D5DB] hover:border-gray-400 focus-within:border-[#F6D04D] focus-within:ring-2 focus-within:ring-[#F6D04D]/40 bg-white flex flex-col justify-center">
+                  <span className="text-[11px] text-[#6B7280] leading-tight">
+                    Куда / Направление
+                  </span>
+                  <select
+                    value={searchParams.aiDestination || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        aiDestination: val,
+                        hotelDestination: val || prev.hotelDestination,
+                        selectedCityShort: val
+                          ? val.split(',')[0].trim()
+                          : prev.selectedCityShort,
+                      }));
+                    }}
+                    className="w-full text-[14px] text-[#111827] bg-transparent focus:outline-none cursor-pointer mt-0.5"
+                  >
+                    <option value="">Любое или выберите город</option>
+                    <option value="Нью-Йорк, США">Нью-Йорк, США</option>
+                    <option value="Барселона, Испания">Барселона, Испания</option>
+                    <option value="Дубай, ОАЭ">Дубай, ОАЭ</option>
+                    <option value="Стамбул, Турция">Стамбул, Турция</option>
+                    <option value="Париж, Франция">Париж, Франция</option>
+                    <option value="Лондон, Великобритания">
+                      Лондон, Великобритания
+                    </option>
+                    <option value="Токио, Япония">Токио, Япония</option>
+                  </select>
+                </div>
+
+                {/* 2. Даты поездки (RateHawk Заезд — Выезд Datepicker) (4 cols) */}
+                <div
+                  className="md:col-span-1 lg:col-span-4 relative"
+                  data-datepicker-trigger="true"
+                >
+                  <div className="grid grid-cols-2 h-[52px] rounded-xl border border-[#D1D5DB] hover:border-gray-400 bg-white divide-x divide-[#D1D5DB]">
+                    <div
+                      onClick={() => setActiveDatePicker('ai-start')}
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${
+                        activeDatePicker === 'ai-start'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
+                    >
+                      <span className="text-[11px] text-[#6B7280] leading-tight">
+                        Заезд
+                      </span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={searchParams.checkIn}
+                        onFocus={() => setActiveDatePicker('ai-start')}
+                        className="text-[14px] text-[#111827] font-normal focus:outline-none bg-transparent leading-tight mt-0.5 w-full cursor-pointer"
+                      />
+                    </div>
+                    <div
+                      onClick={() => setActiveDatePicker('ai-end')}
+                      className={`px-3.5 py-1.5 flex flex-col justify-center cursor-pointer transition-all rounded-r-xl ${
+                        activeDatePicker === 'ai-end'
+                          ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                          : 'hover:bg-gray-50/70'
+                      }`}
+                    >
+                      <span className="text-[11px] text-[#6B7280] leading-tight">
+                        Выезд
+                      </span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={searchParams.checkOut}
+                        onFocus={() => setActiveDatePicker('ai-end')}
+                        className="text-[14px] text-[#111827] font-normal focus:outline-none bg-transparent leading-tight mt-0.5 w-full cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {(activeDatePicker === 'ai-start' ||
+                    activeDatePicker === 'ai-end') && (
+                    <DatePickerPopover
+                      mode="hotel"
+                      activeField={
+                        activeDatePicker === 'ai-end' ? 'end' : 'start'
+                      }
+                      initialStartIso={searchParams.checkInIso || '2026-11-12'}
+                      initialEndIso={searchParams.checkOutIso || '2026-11-19'}
+                      onSwitchField={(nextField) =>
+                        setActiveDatePicker(
+                          nextField === 'end' ? 'ai-end' : 'ai-start'
+                        )
+                      }
+                      onSelectCheckIn={(formattedStr, isoStr) => {
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          checkIn: formattedStr,
+                          checkInIso: isoStr,
+                        }));
+                      }}
+                      onSelectCheckOut={(formattedStr, isoStr, nightsCount) => {
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          checkOut: formattedStr,
+                          checkOutIso: isoStr,
+                          nights: nightsCount || 7,
+                        }));
+                      }}
+                      onClose={() => setActiveDatePicker(null)}
+                    />
+                  )}
+                </div>
+
+                {/* 3. Гости и Бюджет (3 cols) */}
+                <div className="md:col-span-1 lg:col-span-3 relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowAiGuestsBudget(!showAiGuestsBudget)}
+                    className="w-full h-[52px] px-3.5 py-1.5 rounded-xl border border-[#D1D5DB] hover:border-gray-400 bg-white flex items-center justify-between text-left"
+                  >
+                    <div>
+                      <span className="text-[11px] text-[#6B7280] block leading-tight">
+                        Гости и бюджет
+                      </span>
+                      <span className="text-[14px] text-[#111827] font-normal leading-tight mt-0.5 block">
+                        {searchParams.adults + searchParams.children} гостей • до{' '}
+                        {(searchParams.aiBudget || 4000).toLocaleString('ru-RU')} $
+                      </span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+                  </button>
+
+                  {showAiGuestsBudget && (
+                    <div className="absolute right-0 top-[56px] w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-40 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-800">
+                          Количество гостей
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSearchParams((p) => ({
+                                ...p,
+                                adults: Math.max(1, p.adults - 1),
+                              }))
+                            }
+                            className="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-xs font-bold w-4 text-center">
+                            {searchParams.adults}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSearchParams((p) => ({
+                                ...p,
+                                adults: Math.min(6, p.adults + 1),
+                              }))
+                            }
+                            className="w-7 h-7 rounded-lg border border-gray-300 flex items-center justify-center hover:bg-gray-50"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                        <span className="text-xs font-medium text-gray-800 block">
+                          Бюджет на весь пакет
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[2500, 4000, 6000, 8000].map((bVal) => {
+                            const active =
+                              (searchParams.aiBudget || 4000) === bVal;
+                            return (
+                              <button
+                                key={bVal}
+                                type="button"
+                                onClick={() =>
+                                  setSearchParams((p) => ({
+                                    ...p,
+                                    aiBudget: bVal,
+                                  }))
+                                }
+                                className={`py-1.5 px-2 rounded-lg text-xs border transition-colors ${
+                                  active
+                                    ? 'border-[#F6D04D] bg-[#FFF8DB] font-semibold text-[#111827]'
+                                    : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                                }`}
+                              >
+                                до {bVal.toLocaleString('ru-RU')} $
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAiGuestsBudget(false)}
+                        className="w-full py-1.5 rounded-lg bg-[#F6D04D] hover:bg-[#F5C400] text-xs font-semibold text-[#111827]"
+                      >
+                        Готово
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Primary Button: Собрать тур (2 cols) */}
+                <div className="md:col-span-1 lg:col-span-2">
+                  <button
+                    type="button"
+                    disabled={isGeneratingAI}
+                    onClick={() => onRunAISearch(aiPrompt)}
+                    className="w-full h-[52px] rounded-xl bg-[#F6D04D] hover:bg-[#f5c400] text-gray-900 font-semibold text-[15px] transition-all shadow-sm flex items-center justify-center gap-1.5 px-4 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#7C3AED] shrink-0" />
+                    <span>Собрать тур</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 3: Subtle Quick Prompt Chips (Clean) */}
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {AI_QUICK_CHIPS.map((chip) => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => {
+                      setAiPrompt(chip.prompt);
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        aiDestination: chip.city,
+                        hotelDestination: chip.city,
+                        selectedCityShort: chip.city.split(',')[0].trim(),
+                      }));
+                      onRunAISearch(chip.prompt);
+                    }}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs rounded-lg px-3 py-1.5 transition-colors"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

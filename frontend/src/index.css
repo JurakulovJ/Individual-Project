@@ -10,6 +10,15 @@
   }
 }
 
+/* Hide scrollbars while keeping smooth horizontal touch scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Custom Range Slider Styling to match RateHawk yellow sliders */
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;

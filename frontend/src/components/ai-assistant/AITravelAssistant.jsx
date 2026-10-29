@@ -1,561 +1,418 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Sparkles,
   Plane,
   BedDouble,
   Bus,
   CheckCircle2,
-  SlidersHorizontal,
-  ArrowRight,
   Loader2,
-  Wand2,
-  Calendar,
-  MapPin,
-  Filter,
+  Star,
   ChevronDown,
   ChevronUp,
+  Send,
+  RotateCcw,
 } from 'lucide-react';
-import {
-  extractConstraints,
-  generateItinerary,
-  quickGenerateItinerary,
-} from '../../services/api';
 
-const PRESET_PROMPTS = [
-  {
-    id: 'nyc-lux',
-    badge: '🗽 Премиум США',
-    title: 'Нью-Йорк: Манхэттен 5* на 7 ночей',
-    prompt:
-      'Подбери отель 5 звёзд в центре Нью-Йорка возле Таймс-сквер или Центрального парка с 12 по 19 ноября для 2 взрослых, бюджет до $4500, бесплатная отмена',
-  },
-  {
-    id: 'bcn-lon',
-    badge: '🔥 Хит B2B тура',
-    title: 'Барселона + Лондон (7 ночей)',
-    prompt:
-      'Собери тур в Барселону и Лондон на 7 дней в ноябре для 2 взрослых: отель 5* с завтраком BB, прямой перелет и трансфер из аэропорта, бюджет до $3500',
-  },
-  {
-    id: 'dubai-family',
-    badge: '🌴 Семейный отдых',
-    title: 'Дубай: Всё включено (AI) + Прямой рейс',
-    prompt:
-      'Семейный тур в Дубай на 7 ночей для 2 взрослых: отель 5* на первой линии с питанием AI, прямой перелет и индивидуальный трансфер',
-  },
+const LOADING_STEPS = [
+  'Подбираем оптимальные авиарейсы...',
+  'Ищем отели по вашим критериям...',
+  'Формируем готовый тур...',
 ];
 
 export default function AITravelAssistant({
+  isGenerating,
+  loadingStep,
+  itineraryData,
+  aiSummaryText,
+  onSendFollowUp,
   onApplyBundle,
   onApplyFiltersToSearch,
   onJumpToHotels,
   onJumpToFlights,
 }) {
-  const [prompt, setPrompt] = useState(PRESET_PROMPTS[0].prompt);
-  const [budget, setBudget] = useState(4000);
-  const [vibe, setVibe] = useState('Премиум + Комфорт');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [reasoningStep, setReasoningStep] = useState(0);
-  const [constraints, setConstraints] = useState(null);
-  const [itineraryData, setItineraryData] = useState(null);
-  const [selectedBundleId, setSelectedBundleId] = useState(null);
-  const [showTimeline, setShowTimeline] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [followUpText, setFollowUpText] = useState('');
+  const [expandedBundleDays, setExpandedBundleDays] = useState({});
 
-  const reasoningMessages = [
-    'POST /api/v1/plan/extract-constraints — Извлечение локации, дат, звёздности и бюджета...',
-    'POST /api/v1/itinerary/generate — Поиск рейсов и ранжирование отелей из базы RateHawk...',
-    'Синхронизация тарифов (Авиа + Отель + Трансфер) и расчёт B2B баллов лояльности...',
-    'Формирование готовых пакетных предложений и дневного расписания...',
-  ];
-
-  const handleRunAISearch = async (customPrompt = null) => {
-    const activePrompt = customPrompt ?? prompt;
-    if (!activePrompt.trim()) return;
-
-    setIsGenerating(true);
-    setErrorMsg(null);
-    setReasoningStep(0);
-
-    try {
-      // Step 1: Extract structured constraints via FastAPI
-      const extracted = await extractConstraints(activePrompt);
-      setConstraints(extracted);
-      setReasoningStep(1);
-
-      // Step 2: Generate full itinerary + real inventory bundles via FastAPI
-      const generated = await generateItinerary(extracted);
-      setReasoningStep(2);
-
-      setTimeout(() => {
-        setReasoningStep(3);
-        setItineraryData(generated);
-        if (generated.recommended_bundles?.length > 0) {
-          setSelectedBundleId(generated.recommended_bundles[0].id);
-        }
-        setIsGenerating(false);
-      }, 300);
-    } catch (err) {
-      // Fallback to quickGenerateItinerary if needed
-      try {
-        const quick = await quickGenerateItinerary(activePrompt);
-        setConstraints(quick.constraints || null);
-        setItineraryData(quick);
-        if (quick.recommended_bundles?.length > 0) {
-          setSelectedBundleId(quick.recommended_bundles[0].id);
-        }
-      } catch (e2) {
-        setErrorMsg(
-          e2?.response?.data?.detail ||
-          'Не удалось связаться с FastAPI сервером (localhost:8000)'
-        );
-      } finally {
-        setIsGenerating(false);
-      }
-    }
+  const toggleDaysAccordion = (bundleId) => {
+    setExpandedBundleDays((prev) => ({
+      ...prev,
+      [bundleId]: !prev[bundleId],
+    }));
   };
 
-  // Auto-run initial AI synthesis on mount so bundles are immediately populated from backend
-  useEffect(() => {
-    handleRunAISearch(PRESET_PROMPTS[0].prompt);
-  }, []);
+  const handleFollowUpSubmit = (e) => {
+    e.preventDefault();
+    if (!followUpText.trim() || isGenerating) return;
+    onSendFollowUp(followUpText.trim());
+    setFollowUpText('');
+  };
 
   const bundles = itineraryData?.recommended_bundles || [];
+  const days = itineraryData?.days || [];
 
   return (
-    <div className="space-y-5">
-      {/* Top Header Banner inside Search Card */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#4F46E5] flex items-center justify-center text-white shadow-sm">
-            <Sparkles className="w-5 h-5 text-[#F6D04D]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-[16px] font-bold text-[#111827]">
-                AI Travel Ассистент — Умная сборка тура за 1 клик
-              </h3>
-              <span className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-purple-100 text-[#7C3AED]">
-                FastAPI Live Engine
-              </span>
+    <section className="max-w-[1220px] mx-auto px-4 pt-8 pb-2">
+      {/* ================================================================= */}
+      {/* STEP B: INTERACTIVE LOADING STATE BELOW YELLOW HERO BANNER        */}
+      {/* ================================================================= */}
+      {isGenerating && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {LOADING_STEPS.map((label, idx) => {
+                const isDone = idx < loadingStep;
+                const isCurrent = idx === loadingStep;
+                return (
+                  <div
+                    key={label}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                      isCurrent
+                        ? 'border-[#F6D04D] bg-[#FFFDF5]'
+                        : isDone
+                        ? 'border-gray-200 bg-gray-50/70'
+                        : 'border-gray-100 bg-white opacity-50'
+                    }`}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                    ) : isCurrent ? (
+                      <Loader2 className="w-4 h-4 text-[#111827] animate-spin shrink-0" />
+                    ) : (
+                      <span className="w-4 h-4 rounded-full border border-gray-300 shrink-0" />
+                    )}
+                    <span className="text-[13px] font-medium text-[#111827]">
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-[12px] text-[#6B7280]">
-              Запрос обрабатывается через <code className="text-[#7C3AED]">/api/v1/plan/extract-constraints</code> и <code className="text-[#7C3AED]">/api/v1/itinerary/generate</code>
-            </p>
           </div>
-        </div>
 
-        {/* Vibe selector pills */}
-        <div className="flex items-center gap-1.5 bg-[#F4F5F7] p-1 rounded-xl self-start">
-          {['Оптимальный', 'Премиум + Комфорт', 'Бизнес-поездка'].map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setVibe(v)}
-              className={`px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all ${vibe === v
-                  ? 'bg-[#1C2026] text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-                }`}
+          {/* Clean RateHawk-style Skeleton Package Cards */}
+          {[1, 2].map((sk) => (
+            <div
+              key={sk}
+              className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 animate-pulse"
             >
-              {v}
-            </button>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-9 space-y-3">
+                  <div className="h-5 bg-gray-200 rounded w-1/3" />
+                  <div className="h-14 bg-gray-100 rounded-lg" />
+                  <div className="h-14 bg-gray-100 rounded-lg" />
+                  <div className="h-12 bg-gray-100 rounded-lg" />
+                </div>
+                <div className="lg:col-span-3 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
+                  <div className="space-y-2">
+                    <div className="h-7 bg-gray-200 rounded w-2/3" />
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                  </div>
+                  <div className="h-10 bg-gray-200 rounded-xl w-full mt-4" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* Prompt Input + Controls Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* Left: Conversational Prompt Box + Quick Chips (8 cols) */}
-        <div className="lg:col-span-8 space-y-3">
-          <div className="relative rounded-xl border-2 border-[#7C3AED]/40 focus-within:border-[#7C3AED] bg-[#FAFAFF] p-3.5 transition-all">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-[#7C3AED] flex items-center gap-1.5 mb-1">
-              <Wand2 className="w-3.5 h-3.5" />
-              <span>Ваш запрос на естественном языке</span>
-            </label>
-            <textarea
-              rows={2}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Например: Собери тур в Барселону или Нью-Йорк на 7 дней в ноябре для 2 взрослых..."
-              className="w-full bg-transparent text-[14px] text-[#111827] placeholder-gray-400 focus:outline-none resize-none leading-relaxed font-normal"
-            />
-          </div>
-
-          {/* Interactive Quick-Prompt Chips */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12px] text-[#6B7280] font-medium">
-              Быстрые шаблоны:
-            </span>
-            {PRESET_PROMPTS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setPrompt(item.prompt);
-                  handleRunAISearch(item.prompt);
-                }}
-                className="px-3 py-1 rounded-full bg-[#F4F5F7] hover:bg-purple-50 border border-gray-200 hover:border-[#7C3AED]/40 text-[12px] text-[#111827] flex items-center gap-1.5 transition-all"
-              >
-                <span className="font-semibold text-[#7C3AED]">
-                  {item.badge}
-                </span>
-                <span>{item.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Budget Slider + CTA Button (4 cols) */}
-        <div className="lg:col-span-4 bg-[#F4F5F7] rounded-xl p-4 space-y-3 border border-gray-200/80">
-          <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium text-[#374151] flex items-center gap-1">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#7C3AED]" />
-              <span>Лимит бюджета на пакет:</span>
-            </span>
-            <span className="text-[15px] font-extrabold text-[#111827]">
-              до {budget.toLocaleString('ru-RU')} $
-            </span>
-          </div>
-
-          <input
-            type="range"
-            min={1200}
-            max={8000}
-            step={100}
-            value={budget}
-            onChange={(e) => setBudget(Number(e.target.value))}
-            className="w-full accent-[#7C3AED] cursor-pointer h-1.5 bg-gray-300 rounded-lg"
-          />
-
-          <div className="flex justify-between text-[11px] text-gray-500">
-            <span>1 200 $ (Эконом)</span>
-            <span>4 000 $ (Оптимум)</span>
-            <span>8 000 $ (VIP)</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => handleRunAISearch()}
-            disabled={isGenerating}
-            className="w-full h-[46px] rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm transition-all"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-[#111827]" />
-                <span>AI собирает пакет...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-[#7C3AED]" />
-                <span>Сгенерировать AI-тур</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {errorMsg && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
-          {errorMsg}
-        </div>
       )}
 
-      {/* Extracted Pydantic TravelConstraints Pill Bar */}
-      {constraints && !isGenerating && (
-        <div className="bg-[#FAFAFF] border border-[#7C3AED]/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2 py-0.5 rounded bg-[#7C3AED] text-white font-bold text-[10px] uppercase">
-              Распознано AI
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 font-semibold text-[#111827] flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-[#7C3AED]" />
-              {constraints.destination}
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[#374151] flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-[#2563EB]" />
-              {constraints.start_date} → {constraints.end_date}
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-[#374151]">
-              Гостей: <strong>{constraints.travelers_count}</strong> • Класс:{' '}
-              <strong className="uppercase">{constraints.budget_level}</strong>
-            </span>
-          </div>
-
-          {itineraryData?.suggested_manual_filters && (
-            <button
-              type="button"
-              onClick={() =>
-                onApplyFiltersToSearch(itineraryData.suggested_manual_filters)
-              }
-              className="px-3 py-1.5 rounded-lg bg-[#1C2026] hover:bg-black text-white font-semibold text-[11px] flex items-center gap-1.5 transition-all"
-            >
-              <Filter className="w-3.5 h-3.5 text-[#F6D04D]" />
-              <span>Применить фильтры к ручному поиску</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Live AI Reasoning / Building Itinerary Skeleton State */}
-      {isGenerating && (
-        <div className="rounded-xl bg-[#1C2026] text-white p-5 space-y-3 border border-purple-500/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#F6D04D]">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>FastAPI AI Reasoning Engine в процессе сборки...</span>
-            </div>
-            <span className="text-[11px] text-gray-400 font-mono">
-              Шаг {reasoningStep + 1} из 4
-            </span>
-          </div>
-          <div className="space-y-1.5">
-            {reasoningMessages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex items-center gap-2 text-xs transition-opacity ${index <= reasoningStep
-                    ? 'opacity-100 text-gray-100'
-                    : 'opacity-30 text-gray-500'
-                  }`}
-              >
-                <CheckCircle2
-                  className={`w-3.5 h-3.5 shrink-0 ${index < reasoningStep
-                      ? 'text-emerald-400'
-                      : index === reasoningStep
-                        ? 'text-[#F6D04D] animate-pulse'
-                        : 'text-gray-600'
-                    }`}
-                />
-                <span>{msg}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Structured Selectable AI Bundles (Flight + Hotel + Transfer) */}
+      {/* ================================================================= */}
+      {/* STEP C: CLEAN RESULTS & AI CHAT RESPONSE BELOW YELLOW HERO BANNER */}
+      {/* ================================================================= */}
       {!isGenerating && bundles.length > 0 && (
-        <div className="space-y-3 pt-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-[#111827] flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>
-                Готовые пакетные решения из базы (Авиа + Отель + Трансфер):
-              </span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowTimeline(!showTimeline)}
-              className="text-[12px] font-semibold text-[#7C3AED] hover:underline flex items-center gap-1"
+        <div className="space-y-5">
+          {/* 1. AI Concierge Summary Bar (Compact Chat Bubble) */}
+          <div className="bg-white rounded-xl p-4 border border-gray-200 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#FFF8DB] border border-[#F6D04D] flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="w-4 h-4 text-[#111827]" />
+              </div>
+              <p className="text-[14px] text-[#111827] leading-relaxed">
+                {aiSummaryText}
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleFollowUpSubmit}
+              className="flex items-center gap-2 w-full lg:w-[360px] shrink-0"
             >
-              <span>
-                {showTimeline
-                  ? 'Скрыть план по дням'
-                  : `Показать план по дням (${itineraryData?.days?.length || 0} дн.)`}
-              </span>
-              {showTimeline ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
+              <input
+                type="text"
+                value={followUpText}
+                onChange={(e) => setFollowUpText(e.target.value)}
+                placeholder="Уточнить детали в чате..."
+                className="flex-1 h-[38px] px-3.5 rounded-xl border border-gray-300 focus:border-[#F6D04D] focus:outline-none text-[13px] text-[#111827] placeholder-gray-400 bg-white"
+              />
+              <button
+                type="submit"
+                className="h-[38px] px-3.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-[#111827] text-[12px] font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Отправить</span>
+              </button>
+            </form>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {bundles.map((bundle) => {
-              const isSelected = selectedBundleId === bundle.id;
+          {/* 2. Ready-Made Tour Package Cards (RateHawk Visual Consistency) */}
+          <div className="space-y-4">
+            {bundles.map((bundle, idx) => {
+              const isExpanded = Boolean(expandedBundleDays[bundle.id]);
+              const ratingLabel = idx === 0 ? '9,2' : '8,8';
+              const totalFormatted = Number(
+                bundle.total_price || 3670
+              ).toLocaleString('ru-RU');
+              const oldFormatted = bundle.old_total_price
+                ? Number(bundle.old_total_price).toLocaleString('ru-RU')
+                : null;
+
               return (
                 <div
                   key={bundle.id}
-                  onClick={() => setSelectedBundleId(bundle.id)}
-                  className={`rounded-xl border p-4 transition-all cursor-pointer flex flex-col justify-between ${isSelected
-                      ? 'border-2 border-[#7C3AED] bg-purple-50/20 shadow-md'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                  className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 transition-shadow hover:shadow-md"
                 >
-                  <div className="space-y-3">
-                    {/* Bundle Header */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-bold">
-                            {bundle.match_score}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left/Center Column: Package Breakdown (8 cols) */}
+                    <div className="lg:col-span-8 space-y-4">
+                      {/* Card Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="px-2.5 py-0.5 rounded-md bg-gray-100 text-[#374151] text-[11px] font-semibold">
+                              {bundle.badge || 'Оптимальный выбор'}
+                            </span>
+                            {bundle.is_refundable !== false && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#16A34A]">
+                                <RotateCcw className="w-3 h-3" />
+                                Бесплатная отмена
+                              </span>
+                            )}
+                            <span className="px-2 py-0.5 rounded bg-[#EFF6FF] text-[#1D4ED8] text-[11px] font-semibold">
+                              до {bundle.loyalty_points || 112} P
+                            </span>
+                          </div>
+                          <h3 className="text-[18px] font-bold text-[#111827]">
+                            {bundle.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      {/* 3 Included Services: Flight, Hotel, Transfer */}
+                      <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
+                        {/* 1. Flight Row */}
+                        <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#111827] shrink-0 mt-0.5">
+                              <Plane className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                                  Перелёт
+                                </span>
+                                <span className="text-[14px] font-semibold text-[#111827]">
+                                  {bundle.flight.route}
+                                </span>
+                                <span className="text-[12px] text-[#6B7280]">
+                                  • {bundle.flight.carrier}
+                                </span>
+                              </div>
+                              <div className="text-[12px] text-[#6B7280] mt-0.5">
+                                {bundle.flight.dates} • {bundle.flight.tariff}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
+                            {Number(bundle.flight.price).toLocaleString('ru-RU')} $
+                          </div>
+                        </div>
+
+                        {/* 2. Hotel Row (with yellow stars & green rating badge like 9,2) */}
+                        <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#111827] shrink-0 mt-0.5">
+                              <BedDouble className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                                  Отель
+                                </span>
+                                <span className="text-[14px] font-semibold text-[#2563EB]">
+                                  {bundle.hotel.name}
+                                </span>
+                                <div className="flex items-center gap-0.5">
+                                  {Array.from({
+                                    length: bundle.hotel.stars || 5,
+                                  }).map((_, sIdx) => (
+                                    <Star
+                                      key={sIdx}
+                                      className="w-3 h-3 text-[#F59E0B] fill-current"
+                                    />
+                                  ))}
+                                </div>
+                                <span className="px-1.5 py-0.5 rounded bg-[#16A34A] text-white text-[11px] font-bold leading-none">
+                                  {ratingLabel}
+                                </span>
+                              </div>
+                              <div className="text-[12px] text-[#6B7280] mt-0.5">
+                                {bundle.hotel.room} •{' '}
+                                <span className="text-[#16A34A] font-medium">
+                                  {bundle.hotel.perks}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
+                            {Number(bundle.hotel.price).toLocaleString('ru-RU')} $
+                          </div>
+                        </div>
+
+                        {/* 3. Transfer Row */}
+                        <div className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-gray-50/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#111827] shrink-0 mt-0.5">
+                              <Bus className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6B7280]">
+                                  Трансфер
+                                </span>
+                                <span className="text-[14px] font-semibold text-[#111827]">
+                                  {bundle.transfer.type}
+                                </span>
+                              </div>
+                              <div className="text-[12px] text-[#6B7280] mt-0.5">
+                                {bundle.transfer.details}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
+                            {Number(bundle.transfer.price).toLocaleString('ru-RU')} $
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expandable "Показать план по дням" Accordion */}
+                      {days.length > 0 && (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleDaysAccordion(bundle.id)}
+                            className="text-[13px] font-medium text-[#2563EB] hover:underline flex items-center gap-1"
+                          >
+                            <span>
+                              {isExpanded
+                                ? 'Скрыть план по дням'
+                                : `Показать план по дням (${days.length} дн.)`}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {days.map((day) => (
+                                <div
+                                  key={day.day_number}
+                                  className="rounded-xl bg-[#F4F5F7] p-3.5 border border-gray-200/70 space-y-1.5"
+                                >
+                                  <div className="flex items-center justify-between text-[12px]">
+                                    <span className="font-bold text-[#111827]">
+                                      День {day.day_number} • {day.date}
+                                    </span>
+                                  </div>
+                                  <div className="text-[13px] font-medium text-[#374151]">
+                                    {day.title}
+                                  </div>
+                                  <div className="space-y-1 pt-1">
+                                    {day.activities?.map((act, aIdx) => (
+                                      <div
+                                        key={aIdx}
+                                        className="text-[12px] text-[#6B7280] flex items-start justify-between gap-2"
+                                      >
+                                        <span>
+                                          <strong className="text-[#111827] font-medium">
+                                            {act.time}
+                                          </strong>{' '}
+                                          — {act.title}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Price & RateHawk Yellow CTA (4 cols) */}
+                    <div className="lg:col-span-4 lg:border-l lg:border-gray-100 lg:pl-6 flex flex-col justify-between h-full space-y-4">
+                      <div className="space-y-1 lg:text-right">
+                        {oldFormatted && (
+                          <div className="text-[13px] text-gray-400 line-through">
+                            {oldFormatted} $
+                          </div>
+                        )}
+                        <div className="text-[24px] font-bold text-[#111827] leading-tight">
+                          {totalFormatted} ${' '}
+                          <span className="text-[14px] font-normal text-[#6B7280]">
+                            за весь пакет
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-[#FFF8DB] text-[#92400E] border border-[#F6D04D] text-[11px] font-semibold">
-                            {bundle.badge}
-                          </span>
                         </div>
-                        <h4 className="text-[15px] font-bold text-[#111827] mt-1.5">
-                          {bundle.title}
-                        </h4>
+                        <p className="text-[12px] text-[#6B7280]">
+                          Перелёт + Отель 7 ночей + Трансфер
+                        </p>
+                        <p className="text-[11px] text-[#6B7280]">
+                          Для 2 взрослых, включая налоги и сборы
+                        </p>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="text-[11px] text-gray-400 line-through">
-                          {bundle.old_total_price} $
-                        </div>
-                        <div className="text-[20px] font-extrabold text-[#2563EB] leading-none">
-                          {bundle.total_price} $
-                        </div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">
-                          за весь пакет
-                        </div>
-                      </div>
-                    </div>
+                      <div className="space-y-2.5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => onApplyBundle(bundle)}
+                          className="w-full h-[44px] rounded-xl bg-[#F6D04D] hover:bg-[#f5c400] text-[#111827] font-semibold text-[14px] transition-all shadow-2xs"
+                        >
+                          Выбрать тур
+                        </button>
 
-                    {/* 3 Component Pills: Flight, Hotel, Transfer */}
-                    <div className="space-y-2 text-[12px]">
-                      {/* Flight item */}
-                      <div className="p-2.5 rounded-lg bg-[#F4F5F7] flex items-center justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <Plane className="w-4 h-4 text-[#2563EB] shrink-0 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-[#111827]">
-                              {bundle.flight.route} • {bundle.flight.carrier}
-                            </div>
-                            <div className="text-[11px] text-[#6B7280]">
-                              {bundle.flight.dates} • {bundle.flight.tariff}
-                            </div>
-                          </div>
+                        <div className="flex items-center justify-center lg:justify-end gap-4 pt-1 text-[12px] text-[#6B7280]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (bundle.target_search_state) {
+                                onApplyFiltersToSearch(bundle.target_search_state);
+                              } else {
+                                onJumpToHotels();
+                              }
+                            }}
+                            className="hover:text-[#111827] hover:underline"
+                          >
+                            Смотреть в отелях
+                          </button>
+                          <span>•</span>
+                          <button
+                            type="button"
+                            onClick={onJumpToFlights}
+                            className="hover:text-[#111827] hover:underline"
+                          >
+                            Смотреть рейсы
+                          </button>
                         </div>
-                        <span className="font-bold text-[#111827] shrink-0">
-                          {bundle.flight.price} $
-                        </span>
-                      </div>
-
-                      {/* Hotel item */}
-                      <div className="p-2.5 rounded-lg bg-[#F4F5F7] flex items-center justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <BedDouble className="w-4 h-4 text-[#7C3AED] shrink-0 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-[#111827]">
-                              {bundle.hotel.name}
-                            </div>
-                            <div className="text-[11px] text-[#6B7280]">
-                              {bundle.hotel.room} • {bundle.hotel.perks}
-                            </div>
-                          </div>
-                        </div>
-                        <span className="font-bold text-[#111827] shrink-0">
-                          {bundle.hotel.price} $
-                        </span>
-                      </div>
-
-                      {/* Transfer item */}
-                      <div className="p-2.5 rounded-lg bg-[#F4F5F7] flex items-center justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <Bus className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                          <div>
-                            <div className="font-semibold text-[#111827]">
-                              {bundle.transfer.type}
-                            </div>
-                            <div className="text-[11px] text-[#6B7280]">
-                              {bundle.transfer.details}
-                            </div>
-                          </div>
-                        </div>
-                        <span className="font-bold text-[#111827] shrink-0">
-                          {bundle.transfer.price} $
-                        </span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="pt-3 mt-3 border-t border-gray-200/80 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (bundle.target_search_state) {
-                            onApplyFiltersToSearch(bundle.target_search_state);
-                          } else {
-                            onJumpToHotels();
-                          }
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 text-[12px] font-medium text-[#111827]"
-                      >
-                        Открыть в отелях
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onJumpToFlights();
-                        }}
-                        className="px-2.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100 text-[12px] font-medium text-[#111827]"
-                      >
-                        Смотреть авиарейсы
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onApplyBundle(bundle);
-                      }}
-                      className="px-4 py-1.5 rounded-lg bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-semibold text-[12px] flex items-center gap-1.5 shadow-sm"
-                    >
-                      <span>Забронировать пакет</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Day-by-Day Synthesized Itinerary Schedule from /api/v1/itinerary/generate */}
-          {showTimeline && itineraryData?.days && (
-            <div className="mt-4 rounded-xl bg-[#F4F5F7] p-4 border border-gray-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#111827]">
-                  Посуточная программа тура (#{itineraryData.itinerary_id})
-                </h4>
-                <span className="text-xs text-[#6B7280]">
-                  Синтезировано FastAPI Itinerary Builder
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {itineraryData.days.map((day) => (
-                  <div
-                    key={day.day_number}
-                    className="bg-white rounded-xl p-3 border border-gray-200/80 space-y-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
-                      <span className="font-bold text-[#7C3AED]">
-                        День {day.day_number} • {day.date}
-                      </span>
-                    </div>
-                    <div className="font-semibold text-[#111827]">
-                      {day.title}
-                    </div>
-                    <div className="space-y-1.5">
-                      {day.activities?.map((act, idx) => (
-                        <div
-                          key={idx}
-                          className="text-[11px] text-[#4B5563] flex items-start justify-between gap-2"
-                        >
-                          <span>
-                            <strong className="text-[#111827]">
-                              {act.time}
-                            </strong>{' '}
-                            {act.title}
-                          </span>
-                          <span className="font-mono text-emerald-700 font-semibold shrink-0">
-                            ${act.cost}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

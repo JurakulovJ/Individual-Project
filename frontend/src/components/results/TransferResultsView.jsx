@@ -82,11 +82,11 @@ export default function TransferResultsView({
           </span>
         </div>
 
-        {/* Transfer Cards from FastAPI */}
+        {/* Transfer Cards */}
         {loading ? (
           <div className="bg-white rounded-2xl p-8 flex items-center justify-center gap-2 text-sm text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin text-[#7C3AED]" />
-            <span>Загрузка доступных трансферов из API...</span>
+            <Loader2 className="w-4 h-4 animate-spin text-[#6B7280]" />
+            <span>Поиск доступных трансферов...</span>
           </div>
         ) : (
           <div className="space-y-4">

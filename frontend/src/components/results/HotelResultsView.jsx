@@ -38,6 +38,7 @@ export default function HotelResultsView({
 }) {
   // Left Sidebar Filter States
   const [viewMode, setViewMode] = useState('list');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortBy, setSortBy] = useState('popular');
   const [hotelNameFilter, setHotelNameFilter] = useState('');
@@ -72,8 +73,8 @@ export default function HotelResultsView({
   const [totalCount, setTotalCount] = useState(51);
   const [cityLabel, setCityLabel] = useState(
     searchParams.selectedCityShort ||
-      (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
-      'Нью-Йорк'
+    (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
+    'Нью-Йорк'
   );
   const [facets, setFacets] = useState({
     meal_counts: { RO: 51, BB: 31, HB: 0, FB: 0, AI: 0 },
@@ -105,9 +106,9 @@ export default function HotelResultsView({
       setTotalCount(data.total_count ?? data.items?.length ?? 0);
       setCityLabel(
         data.city_label ||
-          searchParams.selectedCityShort ||
-          (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
-          'Нью-Йорк'
+        searchParams.selectedCityShort ||
+        (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
+        'Нью-Йорк'
       );
       if (data.items?.length > 0) {
         setSelectedHotelPin(data.items[0].id);
@@ -202,7 +203,7 @@ export default function HotelResultsView({
     <div className="min-h-screen bg-[#F4F5F7]">
       <div className="max-w-[1440px] mx-auto px-4 pt-3 pb-12">
         {/* Top Breadcrumb (`Главная > Нью-Йорк`) + Quick Photo Toggle */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 text-[12px]">
             <button
               type="button"
@@ -215,15 +216,37 @@ export default function HotelResultsView({
             <span className="text-[#4B5563]">{cityLabel}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowImages(!showImages)}
-            className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-gray-900 shadow-sm"
-          >
-            {showImages
-              ? 'Режим макета: Показать плейсхолдеры (как на скриншоте 5)'
-              : 'Показать реальные фото отелей'}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Mobile / Tablet Controls (<1024px): Фильтры + Список/Карта */}
+            <div className="flex lg:hidden items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+                className="px-3 py-1 rounded-lg bg-[#F6D04D] text-[#111827] text-xs font-bold shadow-2xs"
+              >
+                {mobileFiltersOpen ? 'Скрыть фильтры' : 'Фильтры'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextMode = viewMode === 'map' ? 'list' : 'map';
+                  setViewMode(nextMode);
+                  setMapExpanded(nextMode === 'map');
+                }}
+                className="px-3 py-1 rounded-lg bg-white border border-gray-200 text-[#111827] text-xs font-semibold shadow-2xs"
+              >
+                {viewMode === 'map' ? 'Показать список' : 'На карте'}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowImages(!showImages)}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-600 hover:text-gray-900 shadow-sm"
+            >
+              {showImages ? 'Скрыть фото отелей' : 'Показать фото отелей'}
+            </button>
+          </div>
         </div>
 
         {/* 3-COLUMN SPLIT VIEW (FILTERS 245px | HOTEL CARDS | STICKY MAP) */}
@@ -232,7 +255,10 @@ export default function HotelResultsView({
           {/* COLUMN 1: LEFT FILTERS SIDEBAR (245px)                            */}
           {/* ================================================================= */}
           {!mapExpanded && (
-            <aside className="w-full lg:w-[245px] shrink-0 space-y-3">
+            <aside
+              className={`${mobileFiltersOpen ? 'block' : 'hidden'
+                } lg:block w-full lg:w-[245px] shrink-0 space-y-3`}
+            >
               {/* Search Summary Box */}
               <div
                 onClick={onBackToDashboard}
@@ -271,8 +297,8 @@ export default function HotelResultsView({
                       setMapExpanded(false);
                     }}
                     className={`py-1.5 text-[12px] rounded-md transition-colors ${viewMode === 'list'
-                        ? 'font-semibold text-[#111827] bg-white shadow-sm'
-                        : 'text-[#6B7280]'
+                      ? 'font-semibold text-[#111827] bg-white shadow-sm'
+                      : 'text-[#6B7280]'
                       }`}
                   >
                     Список
@@ -284,8 +310,8 @@ export default function HotelResultsView({
                       setMapExpanded(true);
                     }}
                     className={`py-1.5 text-[12px] rounded-md transition-colors ${viewMode === 'map'
-                        ? 'font-semibold text-[#111827] bg-gray-100'
-                        : 'text-[#6B7280]'
+                      ? 'font-semibold text-[#111827] bg-gray-100'
+                      : 'text-[#6B7280]'
                       }`}
                   >
                     Карта
@@ -474,27 +500,9 @@ export default function HotelResultsView({
                   <h1 className="text-[20px] font-bold text-[#111827]">
                     {cityLabel}: доступен {totalCount} вариант
                   </h1>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold text-[11px] ${providerSource === 'booking_live'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-800 border border-amber-200'
-                        }`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${providerSource === 'booking_live'
-                            ? 'bg-emerald-500 animate-pulse'
-                            : 'bg-amber-500'
-                          }`}
-                      />
-                      {providerSource === 'booking_live'
-                        ? 'Booking.com Live API'
-                        : 'Mock Fallback (Configure RAPIDAPI_KEY in .env)'}
-                    </span>
-                    {loading && (
-                      <Loader2 className="w-4 h-4 animate-spin text-[#7C3AED]" />
-                    )}
-                  </div>
+                  {loading && (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#6B7280]" />
+                  )}
                 </div>
                 <div className="text-[12px] text-[#6B7280]">
                   с применёнными фильтрами:
@@ -594,8 +602,8 @@ export default function HotelResultsView({
                         }}
                         onMouseEnter={() => setSelectedHotelPin(hotel.id)}
                         className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col sm:flex-row min-h-[225px] transition-all ${isHighlighted
-                            ? 'border-[#2563EB] ring-1 ring-[#2563EB]/30 shadow-md'
-                            : 'border-gray-200/80 hover:shadow-md'
+                          ? 'border-[#2563EB] ring-1 ring-[#2563EB]/30 shadow-md'
+                          : 'border-gray-200/80 hover:shadow-md'
                           }`}
                       >
                         {/* Left Image Carousel (225px wide) */}
@@ -619,8 +627,8 @@ export default function HotelResultsView({
                           >
                             <Heart
                               className={`w-4 h-4 ${isFav
-                                  ? 'text-[#DC2626] fill-current'
-                                  : 'text-[#374151]'
+                                ? 'text-[#DC2626] fill-current'
+                                : 'text-[#374151]'
                                 }`}
                             />
                           </button>
@@ -749,8 +757,8 @@ export default function HotelResultsView({
                             <div className="col-span-4 pl-1 space-y-1 text-[11px]">
                               <div
                                 className={`flex items-center gap-1.5 ${hotel.meal_included
-                                    ? 'text-[#16A34A] font-medium'
-                                    : 'text-[#374151]'
+                                  ? 'text-[#16A34A] font-medium'
+                                  : 'text-[#374151]'
                                   }`}
                               >
                                 <Utensils className="w-3 h-3 shrink-0" />
@@ -760,8 +768,8 @@ export default function HotelResultsView({
                               </div>
                               <div
                                 className={`flex items-center gap-1.5 ${hotel.free_cancellation
-                                    ? 'text-[#16A34A] font-medium'
-                                    : 'text-[#374151]'
+                                  ? 'text-[#16A34A] font-medium'
+                                  : 'text-[#374151]'
                                   }`}
                               >
                                 <RotateCcw className="w-3 h-3 shrink-0" />
@@ -1012,8 +1020,8 @@ export default function HotelResultsView({
                 onClick={() => setMapBbox('40,30,70,65')}
                 style={{ left: `${cluster.x}%`, top: `${cluster.y}%` }}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#374151] hover:bg-[#111827] text-white font-bold shadow-lg border-2 border-white/80 flex items-center justify-center transition-transform hover:scale-110 ${cluster.count >= 20
-                    ? 'w-9 h-9 text-[13px]'
-                    : 'w-7 h-7 text-[12px]'
+                  ? 'w-9 h-9 text-[13px]'
+                  : 'w-7 h-7 text-[12px]'
                   }`}
               >
                 {cluster.count}
@@ -1050,8 +1058,8 @@ export default function HotelResultsView({
                   onClick={() => handlePinClick(hotel)}
                   style={{ left: `${x}%`, top: `${y}%` }}
                   className={`absolute -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-full font-bold text-[12px] shadow-md border transition-transform hover:scale-105 z-20 ${isSelected
-                      ? 'bg-[#F6D04D] text-[#111827] border-[#111827]'
-                      : 'bg-white hover:bg-[#F6D04D] text-[#111827] border-gray-300'
+                    ? 'bg-[#F6D04D] text-[#111827] border-[#111827]'
+                    : 'bg-white hover:bg-[#F6D04D] text-[#111827] border-gray-300'
                     }`}
                 >
                   {hotel.map_price_label || `${hotel.total_price} $`}

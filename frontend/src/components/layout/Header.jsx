@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronDown,
   Menu,
@@ -10,8 +10,15 @@ import {
   User,
   LogOut,
   Building2,
-  Eye,
-  Wifi,
+  X,
+  BedDouble,
+  Plane,
+  Bus,
+  Car,
+  Briefcase,
+  ClipboardList,
+  BarChart3,
+  Users,
 } from 'lucide-react';
 
 export default function Header({
@@ -27,14 +34,26 @@ export default function Header({
   setActiveVertical,
   activeOrdersCount = 1,
   loyaltyPointsTotal = 4,
-  apiOnline = true,
-  healthStatus = null,
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [showPromoBanner, setShowPromoBanner] = useState(true);
+  const [ordersSubFilterOpen, setOrdersSubFilterOpen] = useState(true);
+  const headerRef = useRef(null);
 
   const toggleDropdown = (name) => {
     setOpenDropdown((prev) => (prev === name ? null : name));
   };
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (headerRef.current && !headerRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navItems = [
     { id: 'search', label: 'Поиск', badge: null },
@@ -51,177 +70,65 @@ export default function Header({
     { code: 'uz', label: "O'zbekcha", flag: '🇺🇿' },
   ];
 
+  const handleOpenAIMode = () => {
+    setActiveTopNav('search');
+    setCurrentView('dashboard');
+    setActiveVertical('ai-planner');
+    setOpenDropdown(null);
+  };
+
+  const handleSelectSearchVertical = (verticalId) => {
+    setActiveTopNav('search');
+    setCurrentView('dashboard');
+    setActiveVertical(verticalId);
+    setOpenDropdown(null);
+  };
+
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB]">
-      {/* Quick-Jump Bar + Live Backend API Status */}
-      <div className="bg-[#1C2026] text-white px-4 py-1.5 text-[11px] border-b border-white/10">
-        <div className="max-w-[1440px] mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-600 text-white font-semibold text-[10px] tracking-wide uppercase">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${apiOnline ? 'bg-white animate-pulse' : 'bg-amber-300'
-                  }`}
-              />
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB]"
+    >
+      {/* 1. TOP AI FEATURE ANNOUNCEMENT BANNER (DISMISSIBLE) */}
+      {showPromoBanner && (
+        <div className="w-full min-h-[42px] px-4 py-2 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white relative flex items-center justify-center">
+          <div className="max-w-[1440px] mx-auto pr-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-center">
+            <div className="inline-flex items-center gap-1.5 text-[12px] sm:text-[13px] font-medium leading-snug">
+              <Sparkles className="w-4 h-4 text-white shrink-0" />
               <span>
-                {apiOnline
-                  ? 'FastAPI :8000 • Aviasales & Booking.com Adapters Ready'
-                  : 'Connecting to API...'}
+                <strong className="font-semibold">
+                  Доступен умный AI-помощник!
+                </strong>{' '}
+                Соберите готовый тур (перелёт + отель + трансфер) за 30 секунд
+                под ваш бюджет
               </span>
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 text-[10px] text-gray-200 font-medium">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${healthStatus?.aviasales_configured ||
-                    healthStatus?.booking_configured
-                    ? 'bg-emerald-400'
-                    : 'bg-amber-400'
-                  }`}
-              />
-              <span>
-                {healthStatus?.aviasales_configured &&
-                  healthStatus?.booking_configured
-                  ? 'Aviasales + Booking.com Live API'
-                  : 'Aviasales Autocomplete Live • Smart Fallback Active'}
-              </span>
-            </span>
-            <span className="text-gray-400 hidden sm:inline">
-              Быстрый переход по экранам:
-            </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenAIMode}
+              className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1 rounded-full transition shrink-0"
+            >
+              Попробовать →
+            </button>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setCurrentView('dashboard');
-                setActiveVertical('hotels');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium ${currentView === 'dashboard' && activeVertical === 'hotels'
-                ? 'bg-[#F6D04D] text-[#111827] font-bold'
-                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-            >
-              1. Отели (Главная)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setCurrentView('dashboard');
-                setActiveVertical('flights');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium ${currentView === 'dashboard' && activeVertical === 'flights'
-                ? 'bg-[#F6D04D] text-[#111827] font-bold'
-                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-            >
-              2. Авиа (Главная)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setCurrentView('dashboard');
-                setActiveVertical('transfers');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium ${currentView === 'dashboard' && activeVertical === 'transfers'
-                ? 'bg-[#F6D04D] text-[#111827] font-bold'
-                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-            >
-              3. Трансферы (Главная)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setActiveVertical('flights');
-                setCurrentView('flights-results');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium ${currentView === 'flights-results'
-                ? 'bg-[#F6D04D] text-[#111827] font-bold'
-                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-            >
-              4. Выдача Авиабилетов
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setActiveVertical('hotels');
-                setCurrentView('hotels-results');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium ${currentView === 'hotels-results'
-                ? 'bg-[#F6D04D] text-[#111827] font-bold'
-                : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                }`}
-            >
-              5. Выдача Отелей + Карта
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTopNav('search');
-                setCurrentView('dashboard');
-                setActiveVertical('ai-planner');
-              }}
-              className={`px-2.5 py-0.5 rounded transition-all font-medium flex items-center gap-1 ${activeVertical === 'ai-planner' && currentView === 'dashboard'
-                ? 'bg-gradient-to-r from-[#7C3AED] to-[#F5C400] text-white font-bold shadow-sm'
-                : 'bg-[#7C3AED]/40 text-purple-200 hover:bg-[#7C3AED]/70 border border-purple-400/30'
-                }`}
-            >
-              <Sparkles className="w-3 h-3 text-[#F6D04D]" />
-              <span>AI Travel Ассистент</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main 64px RateHawk Enterprise Header Bar */}
-      <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-[64px] flex items-center justify-between gap-4">
-        {/* Left: Brand Logo + Navigation Links */}
-        <div className="flex items-center gap-6 lg:gap-8 h-full">
-          {/* Brand Logo */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTopNav('search');
-              setCurrentView('dashboard');
-              setActiveVertical('hotels');
-            }}
-            className="flex items-center gap-1.5 text-left group focus:outline-none shrink-0"
+            onClick={() => setShowPromoBanner(false)}
+            aria-label="Закрыть баннер"
+            className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-white/20 p-1 rounded text-white/90 hover:text-white transition"
           >
-            <div className="flex items-center">
-              <div className="relative flex items-center justify-center bg-[#111827] text-white font-black text-lg leading-none px-1.5 py-1.5 rounded-l-md border-r border-yellow-400/40">
-                <span className="tracking-tighter text-[18px]">10</span>
-                <span className="text-[6px] uppercase tracking-widest absolute -bottom-0.5 left-1.5 text-[#F6D04D]">
-                  лет
-                </span>
-              </div>
-              <div className="w-7 h-8 bg-[#111827] flex items-center justify-center rounded-r-md relative overflow-hidden">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-5 h-5 text-[#F6D04D] fill-current transform -rotate-12"
-                >
-                  <path d="M12 2L4 7v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V7l-8-5zm-1 14.5l-3.5-3.5 1.41-1.41L11 13.67l5.09-5.09L17.5 10l-6.5 6.5z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1">
-                <span className="font-black text-[18px] tracking-tight text-[#111827] leading-none">
-                  RATE HAWK
-                </span>
-              </div>
-              <span className="text-[9px] font-bold tracking-wider uppercase text-[#7C3AED] leading-none mt-0.5">
-                × TravelAI Enterprise
-              </span>
-            </div>
+            <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-5 lg:gap-6 h-full">
+      {/* 2. MAIN 64PX ENTERPRISE HEADER BAR */}
+      <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-[64px] flex items-center justify-between gap-4">
+        {/* Left: Desktop Horizontal Navigation Links (lg:flex) & Mobile/Tablet Active Section Indicator (<1024px) */}
+        <div className="flex items-center h-full min-w-0">
+          {/* Desktop Navigation Links (>= 1024px) */}
+          <nav className="hidden lg:flex items-center gap-6 h-full">
             {navItems.map((item) => {
               const isActive = activeTopNav === item.id;
               return (
@@ -234,10 +141,11 @@ export default function Header({
                       setCurrentView('dashboard');
                     }
                   }}
-                  className={`relative h-full flex items-center gap-1 text-[14px] transition-colors ${isActive
-                    ? 'font-medium text-[#111827]'
-                    : 'font-normal text-[#4B5563] hover:text-[#111827]'
-                    }`}
+                  className={`relative h-full flex items-center gap-1 text-[14px] whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'font-medium text-[#111827]'
+                      : 'font-normal text-[#4B5563] hover:text-[#111827]'
+                  }`}
                 >
                   <span>{item.label}</span>
                   {item.badge && (
@@ -252,209 +160,519 @@ export default function Header({
               );
             })}
           </nav>
+
+          {/* Tablet / Mobile Compact Nav Pill (< 1024px) */}
+          <div className="flex lg:hidden items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTopNav('search');
+                setCurrentView('dashboard');
+              }}
+              className="px-3 py-1.5 rounded-lg bg-gray-100 text-[#111827] text-[13px] font-semibold flex items-center gap-1.5"
+            >
+              <span>
+                {navItems.find((n) => n.id === activeTopNav)?.label || 'Поиск'}
+              </span>
+              {activeOrdersCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded bg-[#DC2626] text-white text-[10px] font-bold">
+                  {activeOrdersCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenAIMode}
+              className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white text-[12px] font-semibold flex items-center gap-1.5 shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-white shrink-0" />
+              <span>Собрать тур</span>
+            </button>
+          </div>
         </div>
 
-        {/* Right Controls: Language, Currency, Support, User/Agency Profile, Burger */}
-        <div className="flex items-center gap-3 lg:gap-5 text-[13px] text-[#111827]">
-          {/* Language Selector */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => toggleDropdown('lang')}
-              className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span className="inline-flex w-4 h-3 rounded-[2px] overflow-hidden border border-gray-200 shrink-0">
-                <svg viewBox="0 0 9 6" className="w-full h-full">
-                  <rect fill="#fff" width="9" height="3" />
-                  <rect fill="#d52b1e" y="3" width="9" height="3" />
-                  <rect fill="#0039a6" y="2" width="9" height="2" />
-                </svg>
-              </span>
-              <span className="hidden sm:inline font-normal text-[#374151]">
-                {language}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-            </button>
+        {/* Right Controls: Desktop Selectors (hidden on <1024px) + Burger Menu Dropdown */}
+        <div className="flex items-center gap-3 lg:gap-5 text-[13px] text-[#111827] shrink-0">
+          {/* Desktop-only Secondary Controls (Language, Currency, Support, Profile) */}
+          <div className="hidden lg:flex items-center gap-4">
+            {/* Language Selector */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => toggleDropdown('lang')}
+                className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <span className="inline-flex w-4 h-3 rounded-[2px] overflow-hidden border border-gray-200 shrink-0">
+                  <svg viewBox="0 0 9 6" className="w-full h-full">
+                    <rect fill="#fff" width="9" height="3" />
+                    <rect fill="#d52b1e" y="3" width="9" height="3" />
+                    <rect fill="#0039a6" y="2" width="9" height="2" />
+                  </svg>
+                </span>
+                <span className="font-normal text-[#374151]">{language}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
 
-            {openDropdown === 'lang' && (
-              <div className="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
-                {languages.map((l) => (
-                  <button
-                    key={l.code}
-                    type="button"
-                    onClick={() => {
-                      setLanguage(l.label);
-                      setOpenDropdown(null);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs flex items-center justify-between hover:bg-gray-50"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span>{l.flag}</span>
-                      <span className="font-medium text-gray-800">
-                        {l.label}
+              {openDropdown === 'lang' && (
+                <div className="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                  {languages.map((l) => (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => {
+                        setLanguage(l.label);
+                        setOpenDropdown(null);
+                      }}
+                      className="w-full px-3.5 py-2 text-left text-xs flex items-center justify-between hover:bg-gray-50"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{l.flag}</span>
+                        <span className="font-medium text-gray-800">
+                          {l.label}
+                        </span>
                       </span>
+                      {language === l.label && (
+                        <Check className="w-3.5 h-3.5 text-[#7C3AED]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selector */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => toggleDropdown('currency')}
+                className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <span className="w-5 h-5 rounded-md border border-gray-300 flex items-center justify-center text-[9px] font-bold leading-none text-gray-700 tracking-tighter">
+                  $€
+                </span>
+                <span className="font-normal text-[#374151]">{currency}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+
+              {openDropdown === 'currency' && (
+                <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                  {currencies.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setCurrency(c);
+                        setOpenDropdown(null);
+                      }}
+                      className="w-full px-3.5 py-2 text-left text-xs flex items-center justify-between hover:bg-gray-50"
+                    >
+                      <span className="font-medium text-gray-800">{c}</span>
+                      {currency === c && (
+                        <Check className="w-3.5 h-3.5 text-[#7C3AED]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Support Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => toggleDropdown('support')}
+                className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <span className="w-4 h-4 rounded-full bg-[#374151] text-white flex items-center justify-center text-[10px] font-bold">
+                  ?
+                </span>
+                <span className="font-normal text-[#374151]">Поддержка</span>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+
+              {openDropdown === 'support' && (
+                <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 space-y-2.5">
+                  <div className="text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
+                    Служба поддержки 24/7
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer">
+                    <Phone className="w-4 h-4 text-[#7C3AED]" />
+                    <div>
+                      <div className="font-semibold">+998 (71) 205-00-00</div>
+                      <div className="text-[11px] text-gray-400">
+                        Экстренная линия для агентов
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer">
+                    <MessageSquare className="w-4 h-4 text-[#7C3AED]" />
+                    <div>
+                      <div className="font-semibold">Онлайн-чат с куратором</div>
+                      <div className="text-[11px] text-gray-400">
+                        Среднее время ответа: 2 мин
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer pt-1 border-t border-gray-100">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <span>OpenAPI Swagger (/docs)</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* User / Agency Profile Badge */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => toggleDropdown('profile')}
+                className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-gray-100 transition-colors text-left"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#374151] text-white flex items-center justify-center shrink-0">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <div className="leading-tight">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] text-[#6B7280] max-w-[125px] truncate">
+                      shoshprimecontact@...
                     </span>
-                    {language === l.label && (
-                      <Check className="w-3.5 h-3.5 text-[#7C3AED]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Currency Selector */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => toggleDropdown('currency')}
-              className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span className="w-5 h-5 rounded-md border border-gray-300 flex items-center justify-center text-[9px] font-bold leading-none text-gray-700 tracking-tighter">
-                $€
-              </span>
-              <span className="font-normal text-[#374151]">{currency}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-            </button>
-
-            {openDropdown === 'currency' && (
-              <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
-                {currencies.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => {
-                      setCurrency(c);
-                      setOpenDropdown(null);
-                    }}
-                    className="w-full px-3.5 py-2 text-left text-xs flex items-center justify-between hover:bg-gray-50"
-                  >
-                    <span className="font-medium text-gray-800">{c}</span>
-                    {currency === c && (
-                      <Check className="w-3.5 h-3.5 text-[#7C3AED]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Support Dropdown */}
-          <div className="relative hidden sm:block">
-            <button
-              type="button"
-              onClick={() => toggleDropdown('support')}
-              className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span className="w-4 h-4 rounded-full bg-[#374151] text-white flex items-center justify-center text-[10px] font-bold">
-                ?
-              </span>
-              <span className="font-normal text-[#374151]">Поддержка</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-            </button>
-
-            {openDropdown === 'support' && (
-              <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 space-y-2.5">
-                <div className="text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
-                  Служба поддержки 24/7
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer">
-                  <Phone className="w-4 h-4 text-[#7C3AED]" />
-                  <div>
-                    <div className="font-semibold">+998 (71) 205-00-00</div>
-                    <div className="text-[11px] text-gray-400">
-                      Экстренная линия для агентов
-                    </div>
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-[#2563EB] text-white text-[10px] font-bold leading-none">
+                      P {loyaltyPointsTotal}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer">
-                  <MessageSquare className="w-4 h-4 text-[#7C3AED]" />
-                  <div>
-                    <div className="font-semibold">Онлайн-чат с куратором</div>
-                    <div className="text-[11px] text-gray-400">
-                      Среднее время ответа: 2 мин
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-gray-700 hover:text-black cursor-pointer pt-1 border-t border-gray-100">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span>OpenAPI Swagger (/docs)</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* User / Agency Profile Badge */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => toggleDropdown('profile')}
-              className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-gray-100 transition-colors text-left"
-            >
-              <div className="w-6 h-6 rounded-full bg-[#374151] text-white flex items-center justify-center shrink-0">
-                <User className="w-3.5 h-3.5" />
-              </div>
-              <div className="hidden lg:block leading-tight">
-                <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-[#6B7280] max-w-[125px] truncate">
-                    shoshprimecontact@...
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-[#2563EB] text-white text-[10px] font-bold leading-none">
-                    P {loyaltyPointsTotal}
-                  </span>
-                </div>
-                <div className="text-[12px] font-medium text-[#111827]">
-                  ООО &quot;Shosh Prime&quot;
-                </div>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-500 hidden lg:block" />
-            </button>
-
-            {openDropdown === 'profile' && (
-              <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 space-y-2">
-                <div className="pb-2 border-b border-gray-100">
-                  <div className="text-xs font-bold text-gray-900">
+                  <div className="text-[12px] font-medium text-[#111827]">
                     ООО &quot;Shosh Prime&quot;
                   </div>
-                  <div className="text-[11px] text-gray-500">
-                    shoshprimecontact@agency.uz
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+              </button>
+
+              {openDropdown === 'profile' && (
+                <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 space-y-2">
+                  <div className="pb-2 border-b border-gray-100">
+                    <div className="text-xs font-bold text-gray-900">
+                      ООО &quot;Shosh Prime&quot;
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      shoshprimecontact@agency.uz
+                    </div>
+                    <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">
+                      Баланс баллов лояльности: {loyaltyPointsTotal} P
+                    </div>
                   </div>
-                  <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold">
-                    Баланс баллов лояльности: {loyaltyPointsTotal} P
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTopNav('orders');
+                      setOpenDropdown(null);
+                    }}
+                    className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-gray-500" />
+                    <span>Мои заказы и финансовый кабинет</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(null)}
+                    className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Выйти из аккаунта</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 3. RIGHT HAMBURGER MENU ICON & REDESIGNED DROPDOWN CARD */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => toggleDropdown('menu')}
+              className={`p-2 rounded-lg transition-colors ${
+                openDropdown === 'menu'
+                  ? 'bg-gray-100 text-[#111827]'
+                  : 'hover:bg-gray-100 text-[#374151]'
+              }`}
+              title="Меню платформы"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {openDropdown === 'menu' && (
+              <div className="absolute right-0 mt-2.5 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-gray-100 py-3 z-50 max-h-[84vh] overflow-y-auto">
+                {/* Subtle Top Pointer Arrow */}
+                <div className="absolute -top-1.5 right-3.5 w-3 h-3 bg-white border-t border-l border-gray-100 rotate-45 pointer-events-none" />
+
+                {/* SECTION 1: ПОИСК */}
+                <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-4 py-1.5">
+                  Поиск
+                </div>
+                <div className="space-y-0.5 px-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSearchVertical('hotels')}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'search' && activeVertical === 'hotels'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <BedDouble className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Отели и квартиры</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSearchVertical('flights')}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'search' && activeVertical === 'flights'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <Plane className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Авиабилеты</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSearchVertical('transfers')}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'search' &&
+                      activeVertical === 'transfers'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <Bus className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Трансферы</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSearchVertical('car-rental')}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'search' &&
+                      activeVertical === 'car-rental'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <Car className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Аренда авто</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenAIMode}
+                    className="w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between text-purple-600 font-semibold bg-purple-50/70 hover:bg-purple-100/80 transition-colors mt-1"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                      <span>Собрать тур с AI</span>
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-600 text-white font-bold uppercase">
+                      AI
+                    </span>
+                  </button>
+                </div>
+
+                {/* DIVIDER */}
+                <div className="border-t border-gray-100 my-2" />
+
+                {/* SECTION 2: УПРАВЛЕНИЕ И ЗАКАЗЫ */}
+                <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-4 py-1.5">
+                  Управление и заказы
+                </div>
+                <div className="space-y-0.5 px-2">
+                  {/* Поездки */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTopNav('trips');
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between transition-colors ${
+                      activeTopNav === 'trips'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Briefcase className="w-4 h-4 text-gray-500 shrink-0" />
+                      <span>Поездки</span>
+                    </span>
+                    <span className="px-1.5 py-0.5 min-w-[20px] rounded bg-[#DC2626] text-white text-[11px] font-bold text-center leading-none">
+                      {activeOrdersCount}
+                    </span>
+                  </button>
+
+                  {/* Заказы + Sub-filters */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTopNav('orders');
+                          setOpenDropdown(null);
+                        }}
+                        className={`flex-1 px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                          activeTopNav === 'orders'
+                            ? 'bg-gray-100 font-semibold text-[#111827]'
+                            : 'text-[#374151] hover:bg-gray-50'
+                        }`}
+                      >
+                        <ClipboardList className="w-4 h-4 text-gray-500 shrink-0" />
+                        <span>Заказы</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOrdersSubFilterOpen(!ordersSubFilterOpen)
+                        }
+                        className="p-2 text-gray-400 hover:text-gray-700"
+                      >
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform ${
+                            ordersSubFilterOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {ordersSubFilterOpen && (
+                      <div className="pl-9 pr-2 py-1 space-y-0.5 border-l border-gray-100 ml-5">
+                        {[
+                          { id: 'hotels', label: 'Отели' },
+                          { id: 'flights', label: 'Авиабилеты' },
+                          { id: 'transfers', label: 'Трансферы' },
+                          { id: 'car-rental', label: 'Аренда авто' },
+                        ].map((sub) => (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveTopNav('orders');
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full px-2.5 py-1.5 rounded-md text-left text-[12px] text-[#4B5563] hover:text-[#111827] hover:bg-gray-50 transition-colors block"
+                          >
+                            {sub.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Отчётность и финансы */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTopNav('search');
+                      setCurrentView('dashboard');
+                      setOpenDropdown(null);
+                      setTimeout(() => {
+                        window.scrollTo({ top: 420, behavior: 'smooth' });
+                      }, 60);
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'reports'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Отчётность и финансы</span>
+                  </button>
+
+                  {/* Клиенты */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTopNav('clients');
+                      setOpenDropdown(null);
+                    }}
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
+                      activeTopNav === 'clients'
+                        ? 'bg-gray-100 font-semibold text-[#111827]'
+                        : 'text-[#374151] hover:bg-gray-50'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 text-gray-500 shrink-0" />
+                    <span>Клиенты</span>
+                  </button>
+                </div>
+
+                {/* MOBILE / TABLET (<1024px) SETTINGS & PROFILE INSIDE BURGER MENU */}
+                <div className="lg:hidden">
+                  <div className="border-t border-gray-100 my-2" />
+                  <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 px-4 py-1.5">
+                    Настройки и профиль
+                  </div>
+
+                  <div className="px-4 py-2 space-y-3 text-xs">
+                    {/* Language Pills */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500">Язык:</span>
+                      <div className="flex items-center gap-1">
+                        {languages.map((l) => (
+                          <button
+                            key={l.code}
+                            type="button"
+                            onClick={() => setLanguage(l.label)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${
+                              language === l.label
+                                ? 'bg-[#111827] text-white'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {l.flag} {l.code.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Currency Pills */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-gray-500">Валюта:</span>
+                      <div className="flex items-center gap-1 flex-wrap justify-end">
+                        {currencies.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setCurrency(c)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${
+                              currency === c
+                                ? 'bg-[#F6D04D] text-[#111827] font-bold'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {c.split(',')[0]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Support & Company Profile Summary */}
+                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-[#111827]">
+                          ООО &quot;Shosh Prime&quot;
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          Поддержка: +998 (71) 205-00-00
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-[#2563EB] text-white text-[11px] font-bold">
+                        P {loyaltyPointsTotal}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTopNav('orders');
-                    setOpenDropdown(null);
-                  }}
-                  className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Building2 className="w-3.5 h-3.5 text-gray-500" />
-                  <span>Мои заказы и финансовый кабинет</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpenDropdown(null)}
-                  className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Выйти из аккаунта</span>
-                </button>
               </div>
             )}
           </div>
-
-          {/* Right Hamburger Menu Icon */}
-          <button
-            type="button"
-            onClick={() => toggleDropdown('menu')}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-[#374151] transition-colors"
-            title="Меню"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </header>

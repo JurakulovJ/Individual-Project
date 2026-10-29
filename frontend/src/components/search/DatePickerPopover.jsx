@@ -1,225 +1,333 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
 
-const MONTHS_RU = [
-  { name: 'Октябрь 2026', short: 'окт.', flightShort: 'Окт', year: 2026, month: 9, days: 31, startOffset: 3 },
-  { name: 'Ноябрь 2026', short: 'нояб.', flightShort: 'Нояб', year: 2026, month: 10, days: 30, startOffset: 6 },
-  { name: 'Декабрь 2026', short: 'дек.', flightShort: 'Дек', year: 2026, month: 11, days: 31, startOffset: 1 },
-  { name: 'Январь 2027', short: 'янв.', flightShort: 'Янв', year: 2027, month: 0, days: 31, startOffset: 4 },
-  { name: 'Февраль 2027', short: 'февр.', flightShort: 'Фев', year: 2027, month: 1, days: 28, startOffset: 0 },
+// 14 consecutive months starting from October 2026 through November 2027 (matching Screenshots 2 & 3)
+export const CALENDAR_MONTHS = [
+  { key: '2026-10', year: 2026, month: 9, title: 'Октябрь', shortRu: 'окт.', flightShort: 'Окт', showYearBadge: true },
+  { key: '2026-11', year: 2026, month: 10, title: 'Ноябрь', shortRu: 'нояб.', flightShort: 'Нояб', showYearBadge: false },
+  { key: '2026-12', year: 2026, month: 11, title: 'Декабрь', shortRu: 'дек.', flightShort: 'Дек', showYearBadge: false },
+  { key: '2027-01', year: 2027, month: 0, title: 'Январь', shortRu: 'янв.', flightShort: 'Янв', showYearBadge: true },
+  { key: '2027-02', year: 2027, month: 1, title: 'Февраль', shortRu: 'февр.', flightShort: 'Фев', showYearBadge: false },
+  { key: '2027-03', year: 2027, month: 2, title: 'Март', shortRu: 'мар.', flightShort: 'Мар', showYearBadge: false },
+  { key: '2027-04', year: 2027, month: 3, title: 'Апрель', shortRu: 'апр.', flightShort: 'Апр', showYearBadge: false },
+  { key: '2027-05', year: 2027, month: 4, title: 'Май', shortRu: 'мая', flightShort: 'Май', showYearBadge: false },
+  { key: '2027-06', year: 2027, month: 5, title: 'Июнь', shortRu: 'июн.', flightShort: 'Июн', showYearBadge: false },
+  { key: '2027-07', year: 2027, month: 6, title: 'Июль', shortRu: 'июл.', flightShort: 'Июл', showYearBadge: false },
+  { key: '2027-08', year: 2027, month: 7, title: 'Август', shortRu: 'авг.', flightShort: 'Авг', showYearBadge: false },
+  { key: '2027-09', year: 2027, month: 8, title: 'Сентябрь', shortRu: 'сент.', flightShort: 'Сен', showYearBadge: false },
+  { key: '2027-10', year: 2027, month: 9, title: 'Октябрь', shortRu: 'окт.', flightShort: 'Окт', showYearBadge: false },
+  { key: '2027-11', year: 2027, month: 10, title: 'Ноябрь', shortRu: 'нояб.', flightShort: 'Нояб', showYearBadge: false },
 ];
 
-const WEEKDAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const WEEKDAY_SHORT_FLIGHT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const WEEKDAYS_HEADER = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+const WEEKDAYS_SHORT_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function getDaysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+// Monday-based weekday offset (0 = Monday ... 6 = Sunday)
+function getStartOffsetMonday(year, month) {
+  const jsDay = new Date(year, month, 1).getDay();
+  return (jsDay + 6) % 7;
+}
+
+function toIsoDate(year, month, day) {
+  const m = String(month + 1).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${year}-${m}-${d}`;
+}
+
+function diffDays(isoStart, isoEnd) {
+  if (!isoStart || !isoEnd) return 1;
+  const d1 = new Date(`${isoStart}T00:00:00`);
+  const d2 = new Date(`${isoEnd}T00:00:00`);
+  return Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
+}
+
+export function formatIsoForMode(isoStr, mode = 'hotel') {
+  if (!isoStr) return '';
+  const [yStr, mStr, dStr] = isoStr.split('-');
+  const year = Number(yStr);
+  const monthIdx = Number(mStr) - 1;
+  const day = Number(dStr);
+  const mMeta =
+    CALENDAR_MONTHS.find((m) => m.year === year && m.month === monthIdx) ||
+    CALENDAR_MONTHS[1];
+
+  const jsDate = new Date(year, monthIdx, day);
+  const dowMonday = (jsDate.getDay() + 6) % 7;
+
+  if (mode === 'flight') {
+    return `${day} ${mMeta.flightShort}, ${WEEKDAYS_SHORT_RU[dowMonday]}`;
+  }
+  if (mode === 'transfer') {
+    return `${WEEKDAYS_SHORT_RU[dowMonday].toLowerCase()}, ${day} ${mMeta.shortRu}`;
+  }
+  return `${day} ${mMeta.shortRu} ${year} г.`;
+}
 
 export default function DatePickerPopover({
   mode = 'hotel', // 'hotel' | 'flight' | 'transfer'
   activeField = 'start', // 'start' | 'end'
-  onSelectRange,
-  onSelectSingle,
+  onSwitchField, // Callback to switch parent focus from 'start' -> 'end'
+  initialStartIso = '2026-11-12',
+  initialEndIso = '2026-11-19',
+  onSelectCheckIn, // Called immediately on Step 1 (sets ONLY checkIn)
+  onSelectCheckOut, // Called on Step 3 (sets ONLY checkOut + nights, then closes)
+  onSelectSingle, // Called when mode === 'transfer'
   onClose,
 }) {
-  const [monthIdx, setMonthIdx] = useState(1); // Default November 2026
-  const [selectingStep, setSelectingStep] = useState(activeField === 'end' ? 'end' : 'start');
-  const [startDay, setStartDay] = useState(12);
-  const [endDay, setEndDay] = useState(19);
+  const [startIso, setStartIso] = useState(initialStartIso || '2026-11-12');
+  const [endIso, setEndIso] = useState(
+    activeField === 'end' ? null : initialEndIso || '2026-11-19'
+  );
+  const [hoveredIso, setHoveredIso] = useState(null);
+  const [activeMonthKey, setActiveMonthKey] = useState('2026-11');
 
-  const currentMonth = MONTHS_RU[monthIdx];
+  const popoverRef = useRef(null);
+  const rightScrollRef = useRef(null);
+  const monthRefs = useRef({});
 
-  const formatHotelDate = (day, mObj) => `${day} ${mObj.short} ${mObj.year} г.`;
-  const formatFlightDate = (day, mObj) => {
-    const dow = (mObj.startOffset + day - 1) % 7;
-    return `${day} ${mObj.flightShort}, ${WEEKDAY_SHORT_FLIGHT[dow]}`;
+  // Close when clicking outside the calendar or date inputs
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        // Let parent input click handlers handle switching if clicked inside parent container
+        if (e.target.closest('[data-datepicker-trigger="true"]')) {
+          return;
+        }
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [onClose]);
+
+  // Scroll initially to November 2026 (or the month of startIso)
+  useEffect(() => {
+    const targetMonthKey = startIso ? startIso.slice(0, 7) : '2026-11';
+    setActiveMonthKey(targetMonthKey);
+    const el = monthRefs.current[targetMonthKey];
+    if (el && rightScrollRef.current) {
+      rightScrollRef.current.scrollTop = Math.max(0, el.offsetTop - 42);
+    }
+  }, []);
+
+  const handleMonthSidebarClick = (mKey) => {
+    setActiveMonthKey(mKey);
+    const el = monthRefs.current[mKey];
+    if (el && rightScrollRef.current) {
+      rightScrollRef.current.scrollTo({
+        top: Math.max(0, el.offsetTop - 42),
+        behavior: 'smooth',
+      });
+    }
   };
-  const formatTransferDate = (day, mObj) => {
-    const dow = (mObj.startOffset + day - 1) % 7;
-    return `${WEEKDAYS_RU[dow].toLowerCase()}, ${day} ${mObj.short}`;
+
+  const handleRightPaneScroll = () => {
+    if (!rightScrollRef.current) return;
+    const scrollTop = rightScrollRef.current.scrollTop + 80;
+    let currentKey = CALENDAR_MONTHS[0].key;
+    for (const m of CALENDAR_MONTHS) {
+      const el = monthRefs.current[m.key];
+      if (el && el.offsetTop <= scrollTop) {
+        currentKey = m.key;
+      }
+    }
+    if (currentKey !== activeMonthKey) {
+      setActiveMonthKey(currentKey);
+    }
   };
 
-  const handleDayClick = (day) => {
+  const handleDayClick = (clickedIso) => {
+    // Single-date mode (Transfers)
     if (mode === 'transfer') {
+      setStartIso(clickedIso);
       if (onSelectSingle) {
-        onSelectSingle(formatTransferDate(day, currentMonth));
+        onSelectSingle(formatIsoForMode(clickedIso, 'transfer'), clickedIso);
       }
       onClose();
       return;
     }
 
-    if (selectingStep === 'start') {
-      const nextEnd = Math.min(currentMonth.days, day + (mode === 'hotel' ? 7 : 3));
-      setStartDay(day);
-      setEndDay(nextEnd);
-      setSelectingStep('end');
-      if (onSelectRange) {
-        if (mode === 'hotel') {
-          onSelectRange(
-            formatHotelDate(day, currentMonth),
-            formatHotelDate(nextEnd, currentMonth),
-            Math.max(1, nextEnd - day)
-          );
-        } else {
-          onSelectRange(
-            formatFlightDate(day, currentMonth),
-            formatFlightDate(nextEnd, currentMonth)
-          );
-        }
+    // STEP 1: Selecting Check-In (Заезд / Туда) — DO NOT auto-set Check-Out!
+    if (activeField === 'start') {
+      setStartIso(clickedIso);
+      setEndIso(null);
+      setHoveredIso(null);
+
+      if (onSelectCheckIn) {
+        onSelectCheckIn(formatIsoForMode(clickedIso, mode), clickedIso);
       }
-    } else {
-      const finalStart = day < startDay ? day : startDay;
-      const finalEnd = day < startDay ? startDay : Math.max(startDay + 1, day);
-      setStartDay(finalStart);
-      setEndDay(finalEnd);
-      if (onSelectRange) {
-        if (mode === 'hotel') {
-          onSelectRange(
-            formatHotelDate(finalStart, currentMonth),
-            formatHotelDate(finalEnd, currentMonth),
-            Math.max(1, finalEnd - finalStart)
-          );
-        } else {
-          onSelectRange(
-            formatFlightDate(finalStart, currentMonth),
-            formatFlightDate(finalEnd, currentMonth)
-          );
-        }
+      // Immediately switch active focus highlight to Выезд (Обратно) input box
+      if (onSwitchField) {
+        onSwitchField('end');
+      }
+      return;
+    }
+
+    // STEP 3: Selecting Check-Out (Выезд / Обратно)
+    if (activeField === 'end') {
+      // Ignore clicks on dates <= startIso (they are disabled)
+      if (startIso && clickedIso <= startIso) {
+        return;
+      }
+      setEndIso(clickedIso);
+      setHoveredIso(null);
+      const nightsCount = diffDays(startIso, clickedIso);
+      if (onSelectCheckOut) {
+        onSelectCheckOut(
+          formatIsoForMode(clickedIso, mode),
+          clickedIso,
+          nightsCount
+        );
       }
       onClose();
     }
   };
 
-  const applyQuickDuration = (nights) => {
-    const s = startDay || 12;
-    const e = Math.min(currentMonth.days, s + nights);
-    setEndDay(e);
-    if (onSelectRange) {
-      if (mode === 'hotel') {
-        onSelectRange(
-          formatHotelDate(s, currentMonth),
-          formatHotelDate(e, currentMonth),
-          Math.max(1, e - s)
-        );
-      } else {
-        onSelectRange(
-          formatFlightDate(s, currentMonth),
-          formatFlightDate(e, currentMonth)
-        );
-      }
-    }
-    onClose();
-  };
+  // Effective end of range for visual highlighting (either locked endIso or hoveredIso preview)
+  const previewEndIso =
+    activeField === 'end' && !endIso && hoveredIso && hoveredIso > startIso
+      ? hoveredIso
+      : endIso;
 
   return (
     <div
+      ref={popoverRef}
       onClick={(e) => e.stopPropagation()}
-      className="absolute left-0 top-[56px] w-[320px] bg-white rounded-2xl shadow-2xl border border-gray-200 p-4 z-50 select-none"
+      className="absolute left-0 top-[56px] w-[335px] sm:w-[440px] h-[380px] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden flex z-50 select-none"
     >
-      {/* Header: Step Indicator + Month Switcher */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[#111827]">
-          <Calendar className="w-4 h-4 text-[#7C3AED]" />
-          <span>
-            {mode === 'transfer'
-              ? 'Выберите дату подачи'
-              : selectingStep === 'start'
-              ? '1. Выберите дату заезда / вылета'
-              : '2. Выберите дату выезда / возврата'}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[11px] text-gray-400 hover:text-gray-700"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Month Navigation */}
-      <div className="flex items-center justify-between mb-2">
-        <button
-          type="button"
-          onClick={() => setMonthIdx((i) => Math.max(0, i - 1))}
-          disabled={monthIdx === 0}
-          className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30"
-        >
-          <ChevronLeft className="w-4 h-4 text-gray-700" />
-        </button>
-        <span className="text-[13px] font-bold text-[#111827]">
-          {currentMonth.name}
-        </span>
-        <button
-          type="button"
-          onClick={() =>
-            setMonthIdx((i) => Math.min(MONTHS_RU.length - 1, i + 1))
-          }
-          disabled={monthIdx === MONTHS_RU.length - 1}
-          className="p-1 rounded-lg hover:bg-gray-100 disabled:opacity-30"
-        >
-          <ChevronRight className="w-4 h-4 text-gray-700" />
-        </button>
-      </div>
-
-      {/* Weekday Headers */}
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-gray-400 mb-1">
-        {WEEKDAYS_RU.map((wd) => (
-          <div key={wd} className="py-1">
-            {wd}
-          </div>
-        ))}
-      </div>
-
-      {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center text-[12px]">
-        {Array.from({ length: currentMonth.startOffset }).map((_, idx) => (
-          <div key={`empty-${idx}`} className="h-8" />
-        ))}
-        {Array.from({ length: currentMonth.days }).map((_, idx) => {
-          const day = idx + 1;
-          const isStart = day === startDay;
-          const isEnd = mode !== 'transfer' && day === endDay;
-          const isInRange =
-            mode !== 'transfer' && day > startDay && day < endDay;
-
+      {/* LEFT COLUMN: SCROLLABLE MONTHS SIDEBAR (SCREENSHOTS 2 & 3) */}
+      <div className="w-[125px] sm:w-[155px] bg-[#F4F5F7] overflow-y-auto border-r border-gray-200 py-1 shrink-0">
+        {CALENDAR_MONTHS.map((m) => {
+          const isSelectedMonth = activeMonthKey === m.key;
           return (
             <button
-              key={day}
+              key={m.key}
               type="button"
-              onClick={() => handleDayClick(day)}
-              className={`h-8 rounded-lg font-medium transition-all flex items-center justify-center ${
-                isStart || isEnd
-                  ? 'bg-[#F6D04D] text-[#111827] font-bold shadow-xs ring-1 ring-[#111827]/20'
-                  : isInRange
-                  ? 'bg-[#FFFBEB] text-[#111827]'
-                  : 'text-[#111827] hover:bg-gray-100'
+              onClick={() => handleMonthSidebarClick(m.key)}
+              className={`w-full px-3.5 py-2 text-left text-[13px] flex items-center justify-between transition-colors ${
+                isSelectedMonth
+                  ? 'bg-white font-semibold text-[#111827] shadow-2xs'
+                  : 'text-[#374151] hover:bg-white/60 font-normal'
               }`}
             >
-              {day}
+              <span>{m.title}</span>
+              {m.showYearBadge && (
+                <span className="text-[11px] text-gray-400 font-normal">
+                  {m.year}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* Quick Presets Footer */}
-      {mode !== 'transfer' && (
-        <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between gap-1">
-          {[
-            { label: '1 ночь', nights: 1 },
-            { label: '3 ночи', nights: 3 },
-            { label: '7 ночей', nights: 7 },
-            { label: '14 ночей', nights: 14 },
-          ].map((preset) => (
-            <button
-              key={preset.nights}
-              type="button"
-              onClick={() => applyQuickDuration(preset.nights)}
-              className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-[#FFFBEB] hover:text-[#111827] text-[11px] font-medium text-gray-600 transition-colors"
-            >
-              {preset.label}
-            </button>
+      {/* RIGHT COLUMN: MULTI-MONTH VERTICAL SCROLLABLE CALENDAR */}
+      <div className="flex-1 flex flex-col bg-white min-w-0">
+        {/* Sticky Weekday Header: ПН ВТ СР ЧТ ПТ СБ ВС */}
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-600 border-b border-gray-100 py-2.5 px-4 bg-white sticky top-0 z-10">
+          {WEEKDAYS_HEADER.map((wd) => (
+            <div key={wd}>{wd}</div>
           ))}
         </div>
-      )}
+
+        {/* Scrollable Consecutive Months Container */}
+        <div
+          ref={rightScrollRef}
+          onScroll={handleRightPaneScroll}
+          onMouseLeave={() => setHoveredIso(null)}
+          className="flex-1 overflow-y-auto px-4 py-3 space-y-6 relative"
+        >
+          {CALENDAR_MONTHS.map((m) => {
+            const totalDays = getDaysInMonth(m.year, m.month);
+            const startOffset = getStartOffsetMonday(m.year, m.month);
+
+            return (
+              <div
+                key={m.key}
+                ref={(el) => {
+                  monthRefs.current[m.key] = el;
+                }}
+              >
+                {/* Month Title aligned left */}
+                <div className="text-[17px] font-bold text-[#111827] mb-2.5">
+                  {m.title}
+                </div>
+
+                {/* Days Grid — zero horizontal gap so range bars connect seamlessly */}
+                <div className="grid grid-cols-7 gap-y-1 gap-x-0 text-center text-[13px]">
+                  {Array.from({ length: startOffset }).map((_, emptyIdx) => (
+                    <div key={`empty-${m.key}-${emptyIdx}`} className="h-8" />
+                  ))}
+
+                  {Array.from({ length: totalDays }).map((_, idx) => {
+                    const dayNum = idx + 1;
+                    const cellIso = toIsoDate(m.year, m.month, dayNum);
+
+                    const isDisabled =
+                      mode !== 'transfer' &&
+                      activeField === 'end' &&
+                      startIso &&
+                      cellIso <= startIso;
+
+                    const isStart = cellIso === startIso;
+                    const isEnd =
+                      mode !== 'transfer' &&
+                      previewEndIso &&
+                      cellIso === previewEndIso;
+                    const isInRange =
+                      mode !== 'transfer' &&
+                      startIso &&
+                      previewEndIso &&
+                      cellIso > startIso &&
+                      cellIso < previewEndIso;
+
+                    let cellClasses =
+                      'h-8 flex items-center justify-center transition-colors ';
+
+                    if (isDisabled) {
+                      cellClasses +=
+                        'text-gray-300 cursor-not-allowed pointer-events-none';
+                    } else if (isStart || isEnd) {
+                      cellClasses +=
+                        'bg-[#F6D04D] text-[#111827] font-bold rounded-[3px] cursor-pointer';
+                    } else if (isInRange) {
+                      cellClasses +=
+                        'bg-[#EFEFEF] text-[#111827] font-normal cursor-pointer';
+                    } else {
+                      cellClasses +=
+                        'text-[#111827] hover:bg-[#F6D04D]/45 rounded-[3px] cursor-pointer';
+                    }
+
+                    return (
+                      <button
+                        key={cellIso}
+                        type="button"
+                        disabled={isDisabled}
+                        onMouseEnter={() => {
+                          if (
+                            mode !== 'transfer' &&
+                            activeField === 'end' &&
+                            !isDisabled
+                          ) {
+                            setHoveredIso(cellIso);
+                          }
+                        }}
+                        onClick={() => handleDayClick(cellIso)}
+                        className={cellClasses}
+                      >
+                        {dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
-

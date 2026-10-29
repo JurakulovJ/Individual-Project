@@ -34,6 +34,7 @@ export default function FlightResultsView({
   const [noAirportChange, setNoAirportChange] = useState(false);
   const [baggageOnly, setBaggageOnly] = useState(false);
   const [activeDatePicker, setActiveDatePicker] = useState(null);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Time Range Sliders State (0 to 1435 minutes => 00:00 to 23:55)
   const [outDepMax, setOutDepMax] = useState(1435);
@@ -222,11 +223,17 @@ export default function FlightResultsView({
               </div>
             </div>
 
-            <div className="lg:col-span-3 relative">
-              <div className="grid grid-cols-2 h-[48px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB] overflow-hidden">
+            <div
+              className="lg:col-span-3 relative"
+              data-datepicker-trigger="true"
+            >
+              <div className="grid grid-cols-2 h-[48px] rounded-xl border border-[#D1D5DB] bg-white divide-x divide-[#E5E7EB]">
                 <div
                   onClick={() => setActiveDatePicker('dep')}
-                  className="px-3 py-1 flex flex-col justify-center cursor-pointer hover:bg-gray-50"
+                  className={`px-3 py-1 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${activeDatePicker === 'dep'
+                      ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                      : 'hover:bg-gray-50'
+                    }`}
                 >
                   <span className="text-[10px] text-[#6B7280] leading-tight">
                     Туда
@@ -241,7 +248,10 @@ export default function FlightResultsView({
                 </div>
                 <div
                   onClick={() => setActiveDatePicker('ret')}
-                  className="px-3 py-1 flex flex-col justify-center cursor-pointer hover:bg-gray-50"
+                  className={`px-3 py-1 flex flex-col justify-center cursor-pointer transition-all rounded-r-xl ${activeDatePicker === 'ret'
+                      ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                      : 'hover:bg-gray-50'
+                    }`}
                 >
                   <span className="text-[10px] text-[#6B7280] leading-tight">
                     Обратно
@@ -260,11 +270,23 @@ export default function FlightResultsView({
                 <DatePickerPopover
                   mode="flight"
                   activeField={activeDatePicker === 'ret' ? 'end' : 'start'}
-                  onSelectRange={(depStr, retStr) => {
+                  initialStartIso={searchParams.flightDepIso || '2026-11-19'}
+                  initialEndIso={searchParams.flightRetIso || '2026-11-20'}
+                  onSwitchField={(nextField) =>
+                    setActiveDatePicker(nextField === 'end' ? 'ret' : 'dep')
+                  }
+                  onSelectCheckIn={(depStr, depIso) => {
                     setSearchParams((prev) => ({
                       ...prev,
                       flightDepDate: depStr,
+                      flightDepIso: depIso,
+                    }));
+                  }}
+                  onSelectCheckOut={(retStr, retIso) => {
+                    setSearchParams((prev) => ({
+                      ...prev,
                       flightRetDate: retStr,
+                      flightRetIso: retIso,
                     }));
                   }}
                   onClose={() => setActiveDatePicker(null)}
@@ -347,8 +369,25 @@ export default function FlightResultsView({
       {/* MAIN CONTENT: LEFT SIDEBAR FILTERS + RIGHT TICKET CARDS               */}
       {/* ===================================================================== */}
       <div className="max-w-[1220px] mx-auto px-4 pt-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Mobile/Tablet Filters Drawer Toggle (<1024px) */}
+        <div className="lg:hidden flex items-center justify-between bg-white rounded-xl p-3 shadow-xs border border-gray-200">
+          <span className="text-xs font-semibold text-[#111827]">
+            Найдено вариантов: {flights.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+            className="px-3.5 py-1.5 rounded-lg bg-[#F6D04D] text-[#111827] text-xs font-bold"
+          >
+            {mobileFiltersOpen ? 'Скрыть фильтры' : 'Фильтры рейсов'}
+          </button>
+        </div>
+
         {/* LEFT SIDEBAR FILTERS (3 COLS) */}
-        <aside className="lg:col-span-3 space-y-3">
+        <aside
+          className={`${mobileFiltersOpen ? 'block' : 'hidden'
+            } lg:block lg:col-span-3 space-y-3`}
+        >
           {/* Card 1: Пересадки */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-3">
             <div className="flex items-center justify-between">
@@ -529,34 +568,6 @@ export default function FlightResultsView({
 
         {/* RIGHT MAIN CONTENT: SORTING TABS + FLIGHT CARDS (9 COLS) */}
         <div className="lg:col-span-9 space-y-4">
-          {/* Provider Status Indicator Pill */}
-          <div className="flex items-center justify-between bg-white rounded-xl px-4 py-2 border border-gray-100 shadow-xs text-xs">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold text-[11px] ${providerSource === 'aviasales_live'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-amber-50 text-amber-800 border border-amber-200'
-                  }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${providerSource === 'aviasales_live'
-                    ? 'bg-emerald-500 animate-pulse'
-                    : 'bg-amber-500'
-                    }`}
-                />
-                {providerSource === 'aviasales_live'
-                  ? 'Aviasales Live API (Travelpayouts v3)'
-                  : 'Mock Fallback (Configure AVIASALES_API_TOKEN in .env)'}
-              </span>
-              <span className="text-gray-400 hidden sm:inline">
-                • Автодополнение IATA: Live (places2)
-              </span>
-            </div>
-            <span className="text-[11px] text-gray-500 font-medium">
-              Найдено: {flights.length} вар.
-            </span>
-          </div>
-
           {/* Sorting Tabs Bar */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 grid grid-cols-2 sm:grid-cols-4 overflow-hidden">
             {[

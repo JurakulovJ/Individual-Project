@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/layout/Header';
 import HeroSearch from './components/search/HeroSearch';
+import AITravelAssistant from './components/ai-assistant/AITravelAssistant';
 import DashboardWidgets from './components/dashboard/DashboardWidgets';
 import FlightResultsView from './components/results/FlightResultsView';
 import HotelResultsView from './components/results/HotelResultsView';
@@ -10,6 +11,9 @@ import {
   checkHealth,
   getDashboardSummary,
   createOrder,
+  extractConstraints,
+  generateItinerary,
+  quickGenerateItinerary,
 } from './services/api';
 import {
   CheckCircle2,
@@ -65,7 +69,100 @@ export default function App() {
     transferDate: 'пт, 30 окт.',
     transferTime: '12:00',
     transferPassengers: 2,
+
+    aiDestination: '',
+    aiBudget: 4000,
   });
+
+  // AI Tour Builder State (rendered below the yellow Hero banner)
+  const [aiPrompt, setAiPrompt] = useState(
+    'Хочу в Нью-Йорк на 7 ночей в ноябре для 2 взрослых, отель 5★ в Манхэттене с бесплатной отменой и прямой перелёт'
+  );
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiLoadingStep, setAiLoadingStep] = useState(0);
+  const [aiItineraryData, setAiItineraryData] = useState(null);
+  const [aiSummaryText, setAiSummaryText] = useState(
+    'Подобрал для вас 2 оптимальных пакета в Нью-Йорк с 12 по 19 ноября (2 взрослых, отели 5★ в Манхэттене + прямой перелёт и трансфер).'
+  );
+
+  const handleRunAISearch = useCallback(
+    async (customPrompt = null) => {
+      const promptToUse = (customPrompt ?? aiPrompt) || '';
+      const enrichedPrompt = searchParams.aiDestination
+        ? `${promptToUse} (${searchParams.aiDestination}, гостей: ${searchParams.adults + searchParams.children
+        }, бюджет до $${searchParams.aiBudget || 4000})`
+        : promptToUse;
+
+      if (!enrichedPrompt.trim()) return;
+
+      setIsGeneratingAI(true);
+      setAiLoadingStep(0);
+
+      const step1Timer = setTimeout(() => setAiLoadingStep(1), 350);
+      const step2Timer = setTimeout(() => setAiLoadingStep(2), 700);
+
+      try {
+        const extracted = await extractConstraints(enrichedPrompt);
+        const generated = await generateItinerary(extracted);
+
+        setTimeout(() => {
+          setAiItineraryData(generated);
+          const count = generated.recommended_bundles?.length || 2;
+          const destRu =
+            searchParams.aiDestination?.split(',')[0] ||
+            (extracted?.destination?.toLowerCase().includes('barcelona')
+              ? 'Барселону и Лондон'
+              : extracted?.destination?.toLowerCase().includes('dubai')
+                ? 'Дубай'
+                : 'Нью-Йорк');
+          setAiSummaryText(
+            `Подобрал для вас ${count} оптимальных пакета в ${destRu} (${searchParams.checkIn || '12 нояб. 2026 г.'
+            } — ${searchParams.checkOut || '19 нояб. 2026 г.'}, ${searchParams.adults + searchParams.children
+            } взрослых, отели 5★ + прямой перелёт и трансфер).`
+          );
+          setIsGeneratingAI(false);
+        }, 950);
+      } catch {
+        try {
+          const quick = await quickGenerateItinerary(enrichedPrompt);
+          setAiItineraryData(quick);
+          const count = quick.recommended_bundles?.length || 2;
+          setAiSummaryText(
+            `Подобрал для вас ${count} оптимальных пакета (${searchParams.checkIn || '12 нояб. 2026 г.'
+            } — ${searchParams.checkOut || '19 нояб. 2026 г.'}, ${searchParams.adults + searchParams.children
+            } взрослых, отели 5★ + прямой перелёт и трансфер).`
+          );
+        } catch {
+          // Keep existing data if offline
+        } finally {
+          setIsGeneratingAI(false);
+        }
+      } finally {
+        clearTimeout(step1Timer);
+        clearTimeout(step2Timer);
+      }
+    },
+    [
+      aiPrompt,
+      searchParams.aiDestination,
+      searchParams.adults,
+      searchParams.children,
+      searchParams.aiBudget,
+      searchParams.checkIn,
+      searchParams.checkOut,
+    ]
+  );
+
+  // Pre-load initial AI tour packages when entering ai-planner tab for the first time
+  useEffect(() => {
+    if (
+      activeVertical === 'ai-planner' &&
+      !aiItineraryData &&
+      !isGeneratingAI
+    ) {
+      handleRunAISearch(aiPrompt);
+    }
+  }, [activeVertical, aiItineraryData, isGeneratingAI, handleRunAISearch, aiPrompt]);
 
   // Live B2B Financial & Order Dashboard State (from GET /api/v1/dashboard/summary)
   const [dashboardSummary, setDashboardSummary] = useState(null);
@@ -305,8 +402,8 @@ export default function App() {
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#7C3AED]">
-                    B2B Кабинет Агента • ООО &quot;Shosh Prime&quot; (Live API)
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#6B7280]">
+                    B2B Кабинет Агента • ООО &quot;Shosh Prime&quot;
                   </span>
                   <h1 className="text-2xl font-bold text-[#111827] mt-1">
                     {activeTopNav === 'trips' &&
@@ -396,9 +493,28 @@ export default function App() {
               searchParams={searchParams}
               setSearchParams={setSearchParams}
               onTriggerSearch={handleTriggerSearch}
-              onApplyAIBundle={handleApplyAIBundle}
-              onApplyAISuggestedFilters={handleApplyAISuggestedFilters}
+              aiPrompt={aiPrompt}
+              setAiPrompt={setAiPrompt}
+              onRunAISearch={handleRunAISearch}
+              isGeneratingAI={isGeneratingAI}
             />
+            {activeVertical === 'ai-planner' && (
+              <AITravelAssistant
+                isGenerating={isGeneratingAI}
+                loadingStep={aiLoadingStep}
+                itineraryData={aiItineraryData}
+                aiSummaryText={aiSummaryText}
+                onSendFollowUp={(followUp) => {
+                  const nextPrompt = `${aiPrompt}. Уточнение: ${followUp}`;
+                  setAiPrompt(nextPrompt);
+                  handleRunAISearch(nextPrompt);
+                }}
+                onApplyBundle={handleApplyAIBundle}
+                onApplyFiltersToSearch={handleApplyAISuggestedFilters}
+                onJumpToHotels={() => handleTriggerSearch('hotels')}
+                onJumpToFlights={() => handleTriggerSearch('flights')}
+              />
+            )}
             <DashboardWidgets
               dashboardSummary={dashboardSummary}
               loadingSummary={loadingSummary}
@@ -444,7 +560,7 @@ export default function App() {
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
               <div>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[11px] font-bold">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Подтверждение заказа (POST /api/v1/orders)
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Подтверждение заказа
                 </span>
                 <h3 className="text-[18px] font-bold text-[#111827] mt-1">
                   {bookingModal.title}

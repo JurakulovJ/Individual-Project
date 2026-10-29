@@ -65,34 +65,20 @@ export default function DashboardWidgets({
               <button
                 type="button"
                 onClick={onRefreshSummary}
-                title="Обновить метрики из API"
+                title="Обновить данные"
                 className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-2xs"
               >
                 <RefreshCw
-                  className={`w-3.5 h-3.5 ${
-                    loadingSummary ? 'animate-spin text-[#7C3AED]' : ''
-                  }`}
+                  className={`w-3.5 h-3.5 ${loadingSummary ? 'animate-spin text-[#6B7280]' : ''
+                    }`}
                 />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAIShowcase(!showAIShowcase)}
-              className="text-xs font-medium text-[#7C3AED] hover:underline flex items-center gap-1"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>
-                {showAIShowcase
-                  ? 'Скрыть витрину AI-маршрутов ниже'
-                  : 'Показать витрину AI-маршрутов'}
-              </span>
-            </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5">
             {/* Card 1: Информация об оплате (6 cols) */}
-            <div className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
+            <div className="md:col-span-2 lg:col-span-6 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
               <h3 className="text-[16px] font-bold text-[#111827] mb-4">
                 Информация об оплате
               </h3>
@@ -168,7 +154,7 @@ export default function DashboardWidgets({
             </div>
 
             {/* Card 2: Бесплатная отмена (3 cols) */}
-            <div className="lg:col-span-3 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
+            <div className="md:col-span-1 lg:col-span-3 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
               <h3 className="text-[16px] font-bold text-[#111827] mb-3">
                 Бесплатная отмена
               </h3>
@@ -176,11 +162,10 @@ export default function DashboardWidgets({
               <div className="divide-y divide-gray-100 my-auto">
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${
-                      freeCancel.expiring_24h > 0
+                    className={`text-[28px] font-medium leading-none ${freeCancel.expiring_24h > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     {freeCancel.expiring_24h}
                   </span>
@@ -190,11 +175,10 @@ export default function DashboardWidgets({
                 </div>
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${
-                      freeCancel.expiring_4d > 0
+                    className={`text-[28px] font-medium leading-none ${freeCancel.expiring_4d > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     {freeCancel.expiring_4d}
                   </span>
@@ -206,7 +190,7 @@ export default function DashboardWidgets({
             </div>
 
             {/* Card 3: Автоотмена (3 cols) */}
-            <div className="lg:col-span-3 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
+            <div className="md:col-span-1 lg:col-span-3 bg-white rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-gray-100 flex flex-col justify-between">
               <h3 className="text-[16px] font-bold text-[#111827] mb-3">
                 Автоотмена
               </h3>
@@ -214,11 +198,10 @@ export default function DashboardWidgets({
               <div className="divide-y divide-gray-100 my-auto">
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${
-                      autoCancel.expiring_24h > 0
+                    className={`text-[28px] font-medium leading-none ${autoCancel.expiring_24h > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     {autoCancel.expiring_24h}
                   </span>
@@ -228,11 +211,10 @@ export default function DashboardWidgets({
                 </div>
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${
-                      autoCancel.expiring_4d > 0
+                    className={`text-[28px] font-medium leading-none ${autoCancel.expiring_4d > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     {autoCancel.expiring_4d}
                   </span>
@@ -342,116 +324,6 @@ export default function DashboardWidgets({
           </div>
         </div>
       </div>
-
-      {/* ===================================================================== */}
-      {/* ZONE 2: MODULAR AI TRAVEL LANDING SECTIONS                            */}
-      {/* ===================================================================== */}
-      {showAIShowcase && (
-        <div className="pt-4 border-t border-gray-200/80 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] text-[11px] font-bold uppercase tracking-wider">
-                <Sparkles className="w-3 h-3" /> TravelAI Гибридные модули
-              </div>
-              <h2 className="text-[20px] font-bold text-[#111827] mt-1">
-                Популярные AI-сценарии и аналитика тарифов
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={onOpenAIMode}
-              className="px-4 py-2 rounded-xl bg-[#1C2026] hover:bg-black text-white text-xs font-semibold flex items-center gap-2 self-start"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#F6D04D]" />
-              <span>Открыть AI Travel Ассистент</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Block 1 */}
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-[#FFF8DB] border border-[#F6D04D] flex items-center justify-center text-[#111827]">
-                  <Compass className="w-5 h-5" />
-                </div>
-                <h3 className="text-[15px] font-bold text-[#111827]">
-                  Популярные AI-Маршруты
-                </h3>
-                <p className="text-[12px] text-[#6B7280] leading-relaxed">
-                  Автоматически сбалансированные мульти-туры с синхронизацией времени прилёта, заселения и трансфера.
-                </p>
-              </div>
-              <div className="space-y-2 pt-2 border-t border-gray-100 text-xs">
-                <button
-                  type="button"
-                  onClick={() => onSelectCuratedRoute('hotels')}
-                  className="w-full p-2 rounded-lg bg-[#F4F5F7] hover:bg-gray-200/70 flex items-center justify-between text-left transition-colors"
-                >
-                  <span className="font-semibold text-[#111827]">
-                    🗽 Нью-Йорк 5★ (7 ночей, 2 взр.)
-                  </span>
-                  <span className="text-[#2563EB] font-bold flex items-center">
-                    от 3515 $ <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelectCuratedRoute('flights')}
-                  className="w-full p-2 rounded-lg bg-[#F4F5F7] hover:bg-gray-200/70 flex items-center justify-between text-left transition-colors"
-                >
-                  <span className="font-semibold text-[#111827]">
-                    ✈️ Барселона ⇄ Лондон (Прямой)
-                  </span>
-                  <span className="text-[#2563EB] font-bold flex items-center">
-                    от 273,63 $ <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Block 2 */}
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7C3AED]">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <h3 className="text-[15px] font-bold text-[#111827]">
-                  Гибридный Поиск: AI + Ручные фильтры
-                </h3>
-                <p className="text-[12px] text-[#6B7280] leading-relaxed">
-                  Агент может начать с текстового промпта, а затем точечно отфильтровать питание (RO/BB), звёздность и тайм-лимит выписки через API.
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-[#F4F5F7] text-[12px] text-[#374151] flex items-center justify-between">
-                <span>Точность подбора под бюджет</span>
-                <span className="font-extrabold text-[#7C3AED]">98.4%</span>
-              </div>
-            </div>
-
-            {/* Block 3 */}
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between space-y-4">
-              <div className="space-y-2">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <h3 className="text-[15px] font-bold text-[#111827]">
-                  Умная аналитика цен и квот
-                </h3>
-                <p className="text-[12px] text-[#6B7280] leading-relaxed">
-                  Мониторинг B2B-тарифов закрытых поставщиков, начисление баллов лояльности (P) и контроль срока бесплатной отмены.
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/60 text-[12px] text-emerald-900 flex items-center justify-between">
-                <span>Средняя экономия на пакете</span>
-                <span className="font-extrabold text-emerald-700">
-                  до 12–15%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
