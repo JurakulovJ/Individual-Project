@@ -1,31 +1,125 @@
 {
   "destinations": [
     {
+      "id": "dest-nyc",
+      "city": "New York",
+      "city_ru": "Нью-Йорк",
+      "name_ru": "Нью-Йорк, Соединенные Штаты Америки",
+      "country": "USA",
+      "country_ru": "США",
+      "airport_code": "JFK",
+      "avg_daily_budget": 240,
+      "hotels_count": 51,
+      "tags": ["luxury", "culture", "shopping", "sightseeing"]
+    },
+    {
+      "id": "dest-bcn",
+      "city": "Barcelona",
+      "city_ru": "Барселона",
+      "name_ru": "Барселона, Испания",
+      "country": "Spain",
+      "country_ru": "Испания",
+      "airport_code": "BCN",
+      "avg_daily_budget": 165,
+      "hotels_count": 84,
+      "tags": ["architecture", "beaches", "food", "culture"]
+    },
+    {
+      "id": "dest-lon",
+      "city": "London",
+      "city_ru": "Лондон",
+      "name_ru": "Лондон, Великобритания",
+      "country": "United Kingdom",
+      "country_ru": "Великобритания",
+      "airport_code": "STN",
+      "avg_daily_budget": 210,
+      "hotels_count": 124,
+      "tags": ["history", "culture", "museums", "shopping"]
+    },
+    {
       "id": "dest-tokyo",
       "city": "Tokyo",
+      "city_ru": "Токио",
+      "name_ru": "Токио, Япония",
       "country": "Japan",
+      "country_ru": "Япония",
       "airport_code": "HND",
       "avg_daily_budget": 140,
+      "hotels_count": 95,
       "tags": ["culture", "food", "technology", "romantic"]
     },
     {
       "id": "dest-paris",
       "city": "Paris",
+      "city_ru": "Париж",
+      "name_ru": "Париж, Франция",
       "country": "France",
+      "country_ru": "Франция",
       "airport_code": "CDG",
       "avg_daily_budget": 180,
+      "hotels_count": 98,
       "tags": ["art", "romantic", "history", "fashion"]
+    },
+    {
+      "id": "dest-dubai",
+      "city": "Dubai",
+      "city_ru": "Дубай",
+      "name_ru": "Дубай, ОАЭ",
+      "country": "UAE",
+      "country_ru": "ОАЭ",
+      "airport_code": "DXB",
+      "avg_daily_budget": 220,
+      "hotels_count": 110,
+      "tags": ["luxury", "beaches", "shopping", "family"]
     },
     {
       "id": "dest-bali",
       "city": "Bali",
+      "city_ru": "Бали",
+      "name_ru": "Бали, Индонезия",
       "country": "Indonesia",
+      "country_ru": "Индонезия",
       "airport_code": "DPS",
       "avg_daily_budget": 65,
+      "hotels_count": 76,
       "tags": ["nature", "beaches", "relaxation", "budget-friendly"]
+    },
+    {
+      "id": "dest-phuket",
+      "city": "Phuket",
+      "city_ru": "Пхукет",
+      "name_ru": "Пхукет, Таиланд",
+      "country": "Thailand",
+      "country_ru": "Таиланд",
+      "airport_code": "HKT",
+      "avg_daily_budget": 85,
+      "hotels_count": 64,
+      "tags": ["beaches", "relaxation", "family", "nature"]
+    },
+    {
+      "id": "dest-tas",
+      "city": "Tashkent",
+      "city_ru": "Ташкент",
+      "name_ru": "Ташкент, Узбекистан",
+      "country": "Uzbekistan",
+      "country_ru": "Узбекистан",
+      "airport_code": "TAS",
+      "avg_daily_budget": 75,
+      "hotels_count": 42,
+      "tags": ["culture", "food", "history", "hospitality"]
     }
   ],
   "mock_flights": [
+    {
+      "flight_id": "FL-RYANAIR-8231",
+      "carrier": "Ryanair",
+      "origin": "BCN",
+      "destination": "STN",
+      "price": 273.63,
+      "currency": "USD",
+      "duration": "2h 25m",
+      "stops": 0
+    },
     {
       "flight_id": "FL-001",
       "carrier": "All Nippon Airways",
@@ -35,9 +129,37 @@
       "currency": "USD",
       "duration": "8h 15m",
       "stops": 1
+    },
+    {
+      "flight_id": "FL-BA-479",
+      "carrier": "British Airways",
+      "origin": "BCN",
+      "destination": "JFK",
+      "price": 540.0,
+      "currency": "USD",
+      "duration": "8h 40m",
+      "stops": 0
     }
   ],
   "mock_hotels": [
+    {
+      "hotel_id": "knickerbocker-nyc",
+      "name": "The Knickerbocker Hotel",
+      "city": "New York",
+      "price_per_night": 524.0,
+      "currency": "USD",
+      "rating": 9.2,
+      "amenities": ["Wi-Fi", "Times Square", "Free Cancellation"]
+    },
+    {
+      "hotel_id": "w-barcelona",
+      "name": "W Barcelona Beachfront Resort",
+      "city": "Barcelona",
+      "price_per_night": 340.0,
+      "currency": "USD",
+      "rating": 9.1,
+      "amenities": ["Wi-Fi", "Breakfast Included", "Beachfront"]
+    },
     {
       "hotel_id": "HT-101",
       "name": "Shinjuku Granbell Hotel",

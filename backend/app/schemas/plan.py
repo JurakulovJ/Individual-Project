@@ -43,3 +43,5 @@ class ItineraryResponse(BaseModel):
     flight_summary: Optional[Dict[str, Any]] = Field(None, description="Recommended flight details")
     hotel_summary: Optional[Dict[str, Any]] = Field(None, description="Recommended hotel details")
     days: List[DayPlan] = Field(default_factory=list, description="Day-by-day plan")
+    recommended_bundles: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Bookable multi-vertical bundles (Flight + Hotel + Transfer)")
+    suggested_manual_filters: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Filters to sync into manual search state")

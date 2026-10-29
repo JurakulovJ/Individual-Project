@@ -19,7 +19,13 @@ param (
 )
 
 $ProjectRoot = $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+    $ProjectRoot = (Get-Location).Path
+}
 Set-Location $ProjectRoot
+
+$BackendDir = Join-Path $ProjectRoot "backend"
+$FrontendDir = Join-Path $ProjectRoot "frontend"
 
 function Show-Header {
     Clear-Host
@@ -29,60 +35,87 @@ function Show-Header {
     Write-Host "Project Root: $ProjectRoot`n" -ForegroundColor DarkGray
 }
 
-function Start-AllServices {
-    Write-Host "`n[*] Starting full TravelAI platform..." -ForegroundColor Green
-    
-    # Check venv
-    $venvPy = Join-Path $ProjectRoot "backend\venv\Scripts\python.exe"
+function Initialize-BackendEnvironment {
+    $venvPy = Join-Path $BackendDir "venv\Scripts\python.exe"
     if (-not (Test-Path $venvPy)) {
         Write-Host "[!] Creating backend virtual environment..." -ForegroundColor Yellow
-        Start-Process -FilePath "python" -ArgumentList "-m venv backend\venv" -Wait -NoNewWindow
-        $venvPip = Join-Path $ProjectRoot "backend\venv\Scripts\pip.exe"
-        Start-Process -FilePath $venvPip -ArgumentList "install -r backend\requirements.txt" -Wait -NoNewWindow
+        & python -m venv "$BackendDir\venv"
     }
+    $venvPip = Join-Path $BackendDir "venv\Scripts\pip.exe"
+    if (Test-Path $venvPip) {
+        # Ensure uvicorn and fastapi are installed
+        $checkUvicorn = Join-Path $BackendDir "venv\Scripts\uvicorn.exe"
+        if (-not (Test-Path $checkUvicorn)) {
+            Write-Host "[!] Installing backend Python requirements..." -ForegroundColor Yellow
+            & $venvPip install -r "$BackendDir\requirements.txt"
+        }
+    }
+}
 
-    # Check node_modules
-    $nodeModules = Join-Path $ProjectRoot "frontend\node_modules"
+function Initialize-FrontendEnvironment {
+    $nodeModules = Join-Path $FrontendDir "node_modules"
     if (-not (Test-Path $nodeModules)) {
-        Write-Host "[!] Installing frontend dependencies..." -ForegroundColor Yellow
-        Start-Process -FilePath "npm" -ArgumentList "install" -WorkingDirectory (Join-Path $ProjectRoot "frontend") -Wait -NoNewWindow
+        Write-Host "[!] Installing frontend npm dependencies..." -ForegroundColor Yellow
+        Push-Location $FrontendDir
+        & npm.cmd install
+        Pop-Location
     }
+}
 
-    Write-Host "[*] Launching FastAPI Backend (Port 8000)..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "call venv\Scripts\activate.bat && python run.py" -WorkingDirectory (Join-Path $ProjectRoot "backend")
-    
+function Start-AllServices {
+    Write-Host "`n[*] Preparing full TravelAI platform..." -ForegroundColor Green
+    Initialize-BackendEnvironment
+    Initialize-FrontendEnvironment
+
+    $venvPy = Join-Path $BackendDir "venv\Scripts\python.exe"
+    $pyExe = if (Test-Path $venvPy) { "`"$venvPy`"" } else { "python" }
+
+    Write-Host "[*] Launching FastAPI Backend (http://localhost:8000)..." -ForegroundColor Cyan
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d `"$BackendDir`" && $pyExe run.py" -WorkingDirectory $BackendDir
+
     Start-Sleep -Seconds 2
 
-    Write-Host "[*] Launching React Frontend (Port 5173)..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "npm run dev" -WorkingDirectory (Join-Path $ProjectRoot "frontend")
+    Write-Host "[*] Launching React Vite Frontend (http://localhost:5173)..." -ForegroundColor Cyan
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d `"$FrontendDir`" && npm.cmd run dev" -WorkingDirectory $FrontendDir
+
+    Start-Sleep -Seconds 2
+    Start-Process "http://localhost:5173"
 
     Write-Host "`n======================================================================" -ForegroundColor Green
     Write-Host " TravelAI services are now running!" -ForegroundColor Green
+    Write-Host " - Frontend Web App:  http://localhost:5173" -ForegroundColor White
     Write-Host " - Backend API:       http://localhost:8000" -ForegroundColor White
     Write-Host " - Interactive Docs:  http://localhost:8000/docs" -ForegroundColor White
     Write-Host " - Health Endpoint:   http://localhost:8000/api/v1/health" -ForegroundColor White
-    Write-Host " - Frontend Web App:  http://localhost:5173" -ForegroundColor White
     Write-Host "======================================================================`n" -ForegroundColor Green
 }
 
 function Start-BackendOnly {
-    Write-Host "`n[*] Launching FastAPI Backend only..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "call venv\Scripts\activate.bat && python run.py" -WorkingDirectory (Join-Path $ProjectRoot "backend")
+    Initialize-BackendEnvironment
+    $venvPy = Join-Path $BackendDir "venv\Scripts\python.exe"
+    $pyExe = if (Test-Path $venvPy) { "`"$venvPy`"" } else { "python" }
+
+    Write-Host "`n[*] Launching FastAPI Backend only (http://localhost:8000)..." -ForegroundColor Cyan
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d `"$BackendDir`" && $pyExe run.py" -WorkingDirectory $BackendDir
 }
 
 function Start-FrontendOnly {
-    Write-Host "`n[*] Launching Frontend only..." -ForegroundColor Cyan
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "npm run dev" -WorkingDirectory (Join-Path $ProjectRoot "frontend")
+    Initialize-FrontendEnvironment
+    Write-Host "`n[*] Launching Frontend only (http://localhost:5173)..." -ForegroundColor Cyan
+    Start-Process -FilePath "cmd.exe" -ArgumentList "/k", "cd /d `"$FrontendDir`" && npm.cmd run dev" -WorkingDirectory $FrontendDir
 }
 
 function Invoke-Pytest {
-    Write-Host "`n[*] Running tests..." -ForegroundColor Yellow
-    $pytestPath = Join-Path $ProjectRoot "backend\venv\Scripts\pytest.exe"
+    Initialize-BackendEnvironment
+    Write-Host "`n[*] Running backend tests..." -ForegroundColor Yellow
+    $pytestPath = Join-Path $BackendDir "venv\Scripts\pytest.exe"
+    Push-Location $BackendDir
     if (Test-Path $pytestPath) {
-        & $pytestPath -v (Join-Path $ProjectRoot "backend\tests")
+        & $pytestPath -v tests
     } else {
-        pytest -v backend\tests
+        & python -m pytest -v tests
     }
+    Pop-Location
 }
 
 function Push-ToGitHub {

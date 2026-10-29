@@ -6,7 +6,7 @@ from app.schemas.plan import (
     ItineraryResponse,
 )
 from app.services.extractor import extract_constraints_from_prompt
-from app.services.itinerary_builder import build_itinerary
+from app.services.itinerary_builder import build_itinerary_async
 from app.adapters.mock_provider import mock_provider
 
 router = APIRouter(prefix="", tags=["Travel Planning & Itineraries"])
@@ -26,10 +26,11 @@ async def extract_constraints(body: ConstraintExtractionRequest) -> TravelConstr
 @router.post("/itinerary/generate", response_model=ItineraryResponse)
 async def generate_itinerary(constraints: TravelConstraints) -> ItineraryResponse:
     """
-    Generate an intelligent, ranked, and cohesive multi-day itinerary.
+    Generate an intelligent, ranked, and cohesive multi-day itinerary
+    simultaneously querying AviasalesFlightProvider and BookingHotelProvider.
     Spec: UI_DATA_CONTRACT.md Section 2.3
     """
-    return build_itinerary(constraints)
+    return await build_itinerary_async(constraints)
 
 
 @router.get("/plan/destinations", response_model=List[Dict[str, Any]])
@@ -48,4 +49,4 @@ async def quick_generate(body: ConstraintExtractionRequest) -> ItineraryResponse
     if not body.prompt or not body.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
     constraints = extract_constraints_from_prompt(body.prompt)
-    return build_itinerary(constraints)
+    return await build_itinerary_async(constraints)
