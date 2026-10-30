@@ -6,6 +6,8 @@ import DashboardWidgets from './components/dashboard/DashboardWidgets';
 import FlightResultsView from './components/results/FlightResultsView';
 import HotelResultsView from './components/results/HotelResultsView';
 import TransferResultsView from './components/results/TransferResultsView';
+import HotelDetailView from './components/results/HotelDetailView';
+import FlightDetailView from './components/results/FlightDetailView';
 import QuickStartWidget from './components/layout/QuickStartWidget';
 import {
   checkHealth,
@@ -172,6 +174,20 @@ export default function App() {
   const [bookingModal, setBookingModal] = useState(null);
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  const [selectedHotelDetail, setSelectedHotelDetail] = useState(null);
+  const [selectedFlightDetail, setSelectedFlightDetail] = useState(null);
+
+  const handleOpenHotelDetail = (hotel) => {
+    setSelectedHotelDetail(hotel);
+    setCurrentView('hotel-detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenFlightDetail = (flight, tariff = null) => {
+    setSelectedFlightDetail({ flight, tariff });
+    setCurrentView('flight-detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -531,6 +547,18 @@ export default function App() {
             searchParams={searchParams}
             setSearchParams={setSearchParams}
             onSelectFlightTariff={handleSelectFlightTariff}
+            onOpenFlightDetail={handleOpenFlightDetail}
+          />
+        ) : currentView === 'flight-detail' ? (
+          <FlightDetailView
+            flight={selectedFlightDetail?.flight}
+            initialTariff={selectedFlightDetail?.tariff}
+            searchParams={searchParams}
+            onBackToResults={() => {
+              setCurrentView('flights-results');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onCreateB2BOrder={handleSelectFlightTariff}
           />
         ) : currentView === 'hotels-results' ? (
           <HotelResultsView
@@ -540,6 +568,17 @@ export default function App() {
               setCurrentView('dashboard');
             }}
             onSelectHotel={handleSelectHotel}
+            onOpenHotelDetail={handleOpenHotelDetail}
+          />
+        ) : currentView === 'hotel-detail' ? (
+          <HotelDetailView
+            hotel={selectedHotelDetail}
+            searchParams={searchParams}
+            onBackToResults={() => {
+              setCurrentView('hotels-results');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onCreateB2BOrder={handleSelectHotel}
           />
         ) : (
           <TransferResultsView

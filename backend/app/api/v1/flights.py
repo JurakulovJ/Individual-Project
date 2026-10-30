@@ -54,4 +54,7 @@ async def search_flights(
         return_dep_max=return_dep_max,
         return_arr_max=return_arr_max,
         sort_by=sort_by,
+        passengers=passengers,
+        cabin_class=cabin_class,
+        trip_type=trip_type,
     )

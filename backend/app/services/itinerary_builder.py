@@ -12,6 +12,7 @@ from app.adapters.mock_provider import mock_provider
 from app.services.booking_repository import booking_repo
 from app.providers.aviasales_provider import aviasales_flight_provider
 from app.providers.booking_provider import booking_hotel_provider
+from app.services.deeplinks import build_transfer_provider_offers
 
 
 async def build_itinerary_async(constraints: TravelConstraints) -> ItineraryResponse:
@@ -101,20 +102,29 @@ async def build_itinerary_async(constraints: TravelConstraints) -> ItineraryResp
                 "price": top_flight.tariffs[-1].price,
                 "airline_logo_url": top_flight.airline_logo_url,
                 "deep_link": top_flight.deep_link,
+                "provider_offers": [o.model_dump() for o in top_flight.provider_offers],
             },
             "hotel": {
                 "id": top_hotel.id,
                 "name": f"{top_hotel.name} {top_hotel.stars}★",
+                "stars": top_hotel.stars,
                 "location": f"{top_hotel.address} • Рейтинг {top_hotel.rating_label}/10",
                 "room": f"{top_hotel.room_type} • {top_hotel.meal_label}",
                 "perks": f"{top_hotel.cancellation_label} • {top_hotel.payment_type} • до {top_hotel.loyalty_points} P",
                 "price": top_hotel.total_price,
+                "provider_offers": [o.model_dump() for o in top_hotel.provider_offers],
             },
             "transfer": {
                 "id": top_transfer.id,
                 "type": top_transfer.vehicle_class,
                 "details": f"{top_transfer.free_waiting_time} • {top_transfer.duration}",
                 "price": top_transfer.price,
+                "provider_offers": build_transfer_provider_offers(
+                    pickup=f"{dest_code} Airport",
+                    dropoff=top_hotel.name,
+                    base_price=top_transfer.price,
+                    date_str=constraints.start_date,
+                ),
             },
             "target_search_state": {
                 "hotelDestination": f"{city_ru}, {dest_info.get('country_ru', dest_info.get('country', ''))}",
@@ -147,20 +157,29 @@ async def build_itinerary_async(constraints: TravelConstraints) -> ItineraryResp
                 "price": alt_flight.tariffs[0].price,
                 "airline_logo_url": alt_flight.airline_logo_url,
                 "deep_link": alt_flight.deep_link,
+                "provider_offers": [o.model_dump() for o in alt_flight.provider_offers],
             },
             "hotel": {
                 "id": alt_hotel.id,
                 "name": f"{alt_hotel.name} {alt_hotel.stars}★",
+                "stars": alt_hotel.stars,
                 "location": f"{alt_hotel.address} • Рейтинг {alt_hotel.rating_label}/10",
                 "room": f"{alt_hotel.room_type} • {alt_hotel.meal_label}",
                 "perks": f"{alt_hotel.cancellation_label} • {alt_hotel.payment_type}",
                 "price": alt_hotel.total_price,
+                "provider_offers": [o.model_dump() for o in alt_hotel.provider_offers],
             },
             "transfer": {
                 "id": vip_transfer.id,
                 "type": vip_transfer.vehicle_class,
                 "details": vip_transfer.free_waiting_time,
                 "price": vip_transfer.price,
+                "provider_offers": build_transfer_provider_offers(
+                    pickup=f"{dest_code} Airport",
+                    dropoff=alt_hotel.name,
+                    base_price=vip_transfer.price,
+                    date_str=constraints.start_date,
+                ),
             },
             "target_search_state": {
                 "hotelDestination": f"{city_ru}, {dest_info.get('country_ru', dest_info.get('country', ''))}",

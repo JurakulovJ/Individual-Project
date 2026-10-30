@@ -17,17 +17,25 @@ import DatePickerPopover from '../search/DatePickerPopover';
 
 const AIRLINES = [
   'Все авиакомпании',
+  'Turkish Airlines',
+  'Pegasus Airlines',
+  'Uzbekistan Airways',
+  'British Airways',
+  'Lufthansa',
+  'Emirates',
+  'Qatar Airways',
+  'flydubai',
   'Ryanair',
   'Air Europa',
-  'British Airways',
-  'Uzbekistan Airways',
-  'Turkish Airlines',
+  'Wizz Air',
+  'Air Astana',
 ];
 
 export default function FlightResultsView({
   searchParams,
   setSearchParams,
   onSelectFlightTariff,
+  onOpenFlightDetail,
 }) {
   // Left Sidebar Filters State
   const [stopsFilter, setStopsFilter] = useState('all'); // 'all' | 'direct' | 'max_1'
@@ -64,6 +72,14 @@ export default function FlightResultsView({
   const [selectedTariffs, setSelectedTariffs] = useState({});
   const [expandedFlightDetails, setExpandedFlightDetails] = useState({});
   const [expandedTariffPopover, setExpandedTariffPopover] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(20);
+
+  const origShort =
+    (searchParams.flightOrigin || 'Барселона').split(',')[0].trim() ||
+    'Барселона';
+  const destShort =
+    (searchParams.flightDestination || 'Лондон').split(',')[0].trim() ||
+    'Лондон';
 
   const formatMinutesToTime = (mins) => {
     const h = Math.floor(mins / 60)
@@ -95,7 +111,8 @@ export default function FlightResultsView({
         sortBy: activeSort,
       });
       setFlights(data.items || []);
-      setProviderSource(data.source || 'mock_fallback');
+      setVisibleCount(20);
+      setProviderSource(data.source || 'catalog_live');
       if (data.sort_summaries) {
         setSortSummaries(data.sort_summaries);
       }
@@ -231,8 +248,8 @@ export default function FlightResultsView({
                 <div
                   onClick={() => setActiveDatePicker('dep')}
                   className={`px-3 py-1 flex flex-col justify-center cursor-pointer transition-all rounded-l-xl ${activeDatePicker === 'dep'
-                      ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
-                      : 'hover:bg-gray-50'
+                    ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                    : 'hover:bg-gray-50'
                     }`}
                 >
                   <span className="text-[10px] text-[#6B7280] leading-tight">
@@ -249,8 +266,8 @@ export default function FlightResultsView({
                 <div
                   onClick={() => setActiveDatePicker('ret')}
                   className={`px-3 py-1 flex flex-col justify-center cursor-pointer transition-all rounded-r-xl ${activeDatePicker === 'ret'
-                      ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
-                      : 'hover:bg-gray-50'
+                    ? 'border border-[#F6D04D] ring-2 ring-[#F6D04D]/40 bg-[#FFFDF5] z-10'
+                    : 'hover:bg-gray-50'
                     }`}
                 >
                   <span className="text-[10px] text-[#6B7280] leading-tight">
@@ -466,10 +483,10 @@ export default function FlightResultsView({
           {/* Card 3: Outbound Time Sliders */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-[13px] font-bold text-[#111827]">
-                Барселона → Лондон
+              <h4 className="text-[13px] font-bold text-[#111827] truncate">
+                {origShort} → {destShort}
               </h4>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
+              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
             </div>
 
             {/* Вылет */}
@@ -518,10 +535,10 @@ export default function FlightResultsView({
           {/* Card 4: Return Time Sliders */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-[13px] font-bold text-[#111827]">
-                Лондон → Барселона
+              <h4 className="text-[13px] font-bold text-[#111827] truncate">
+                {destShort} → {origShort}
               </h4>
-              <ChevronUp className="w-4 h-4 text-gray-400" />
+              <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
             </div>
 
             <div className="space-y-1.5">
@@ -661,7 +678,17 @@ export default function FlightResultsView({
             </div>
           ) : (
             <div className="space-y-4">
-              {flights.map((flight) => {
+              <div className="flex items-center justify-between px-1 text-[13px] text-[#4B5563]">
+                <span>
+                  Найдено вариантов перелёта:{' '}
+                  <strong className="text-[#111827]">{flights.length}</strong>
+                </span>
+                <span className="text-[12px] text-[#6B7280]">
+                  Прямое сравнение тарифов авиакомпаний и агентств
+                </span>
+              </div>
+
+              {flights.slice(0, visibleCount).map((flight) => {
                 const activeTariffId =
                   selectedTariffs[flight.id] || flight.tariffs[0]?.id;
                 const isDetailsOpen = expandedFlightDetails[flight.id];
@@ -1045,37 +1072,49 @@ export default function FlightResultsView({
                         })}
                       </div>
 
-                      <div className="flex flex-col items-end gap-2 shrink-0 self-end sm:self-start">
+                      <div className="flex flex-col items-end gap-1.5 shrink-0 self-end sm:self-center">
                         <button
                           type="button"
                           onClick={() => {
-                            const chosen = flight.tariffs.find(
-                              (t) => t.id === activeTariffId
-                            );
-                            onSelectFlightTariff(
-                              flight,
-                              chosen || flight.tariffs[0]
-                            );
+                            const chosen =
+                              flight.tariffs.find(
+                                (t) => t.id === activeTariffId
+                              ) || flight.tariffs[0];
+                            if (onOpenFlightDetail) {
+                              onOpenFlightDetail(flight, chosen);
+                            } else if (onSelectFlightTariff) {
+                              onSelectFlightTariff(flight, chosen);
+                            }
                           }}
-                          className="h-[40px] px-7 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-medium text-[14px] transition-all"
+                          className="h-[42px] px-7 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-bold text-[14px] transition-all shadow-2xs"
                         >
                           Выбрать
                         </button>
-                        {flight.deep_link && (
-                          <a
-                            href={flight.deep_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[11px] text-[#2563EB] hover:underline font-medium"
-                          >
-                            Aviasales Deep-Link ↗
-                          </a>
-                        )}
+                        <span className="text-[11px] text-[#6B7280]">
+                          4 предложения от {flight.cheapest_provider || 'Skyscanner'}
+                        </span>
                       </div>
                     </div>
                   </div>
                 );
               })}
+
+              {flights.length > visibleCount && (
+                <div className="pt-2 pb-4 flex flex-col items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 20)}
+                    className="w-full sm:w-auto min-w-[300px] px-6 py-3 rounded-xl bg-white hover:bg-[#FFFDF5] border-2 border-[#F6D04D] text-[#111827] text-[13px] font-bold shadow-sm transition-all"
+                  >
+                    Показать ещё {Math.min(20, flights.length - visibleCount)}{' '}
+                    рейсов (осталось {flights.length - visibleCount})
+                  </button>
+                  <span className="text-[11px] text-[#6B7280]">
+                    Показано {Math.min(visibleCount, flights.length)} из{' '}
+                    {flights.length} доступных вариантов
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

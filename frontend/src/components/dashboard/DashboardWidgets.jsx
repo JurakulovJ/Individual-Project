@@ -1,22 +1,11 @@
-import React, { useState } from 'react';
-import {
-  Sparkles,
-  TrendingUp,
-  Layers,
-  Compass,
-  ArrowUpRight,
-  RefreshCw,
-} from 'lucide-react';
+import React from 'react';
+import { RefreshCw } from 'lucide-react';
 
 export default function DashboardWidgets({
   dashboardSummary,
   loadingSummary,
   onRefreshSummary,
-  onSelectCuratedRoute,
-  onOpenAIMode,
 }) {
-  const [showAIShowcase, setShowAIShowcase] = useState(true);
-
   const payment = dashboardSummary?.order_status?.payment_info || {
     not_due_amount: 0,
     payment_required_amount: 0,
@@ -51,9 +40,6 @@ export default function DashboardWidgets({
 
   return (
     <div className="max-w-[1220px] mx-auto px-4 py-8 space-y-10">
-      {/* ===================================================================== */}
-      {/* ZONE 1: OPERATIONAL OVERVIEW (LIVE FROM GET /api/v1/dashboard/summary) */}
-      {/* ===================================================================== */}
       <div className="space-y-6">
         {/* Section: Состояние заказов */}
         <div className="space-y-4">
@@ -62,17 +48,20 @@ export default function DashboardWidgets({
               <h2 className="text-[22px] font-bold text-[#111827] tracking-tight">
                 Состояние заказов
               </h2>
-              <button
-                type="button"
-                onClick={onRefreshSummary}
-                title="Обновить данные"
-                className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-2xs"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${loadingSummary ? 'animate-spin text-[#6B7280]' : ''
+              {onRefreshSummary && (
+                <button
+                  type="button"
+                  onClick={onRefreshSummary}
+                  title="Обновить данные"
+                  className="p-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-900 shadow-2xs"
+                >
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${
+                      loadingSummary ? 'animate-spin text-[#6B7280]' : ''
                     }`}
-                />
-              </button>
+                  />
+                </button>
+              )}
             </div>
           </div>
 
@@ -162,10 +151,11 @@ export default function DashboardWidgets({
               <div className="divide-y divide-gray-100 my-auto">
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${freeCancel.expiring_24h > 0
+                    className={`text-[28px] font-medium leading-none ${
+                      freeCancel.expiring_24h > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                      }`}
+                    }`}
                   >
                     {freeCancel.expiring_24h}
                   </span>
@@ -175,10 +165,11 @@ export default function DashboardWidgets({
                 </div>
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${freeCancel.expiring_4d > 0
+                    className={`text-[28px] font-medium leading-none ${
+                      freeCancel.expiring_4d > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                      }`}
+                    }`}
                   >
                     {freeCancel.expiring_4d}
                   </span>
@@ -198,10 +189,11 @@ export default function DashboardWidgets({
               <div className="divide-y divide-gray-100 my-auto">
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${autoCancel.expiring_24h > 0
+                    className={`text-[28px] font-medium leading-none ${
+                      autoCancel.expiring_24h > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                      }`}
+                    }`}
                   >
                     {autoCancel.expiring_24h}
                   </span>
@@ -211,10 +203,11 @@ export default function DashboardWidgets({
                 </div>
                 <div className="py-3.5 flex items-center gap-4">
                   <span
-                    className={`text-[28px] font-medium leading-none ${autoCancel.expiring_4d > 0
+                    className={`text-[28px] font-medium leading-none ${
+                      autoCancel.expiring_4d > 0
                         ? 'text-[#111827] font-bold'
                         : 'text-[#6B7280]'
-                      }`}
+                    }`}
                   >
                     {autoCancel.expiring_4d}
                   </span>

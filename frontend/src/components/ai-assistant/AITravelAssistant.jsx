@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Send,
   RotateCcw,
+  ExternalLink,
 } from 'lucide-react';
 
 const LOADING_STEPS = [
@@ -220,8 +221,21 @@ export default function AITravelAssistant({
                               </div>
                             </div>
                           </div>
-                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
-                            {Number(bundle.flight.price).toLocaleString('ru-RU')} $
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 shrink-0">
+                            <div className="text-[13px] font-semibold text-[#111827]">
+                              {Number(bundle.flight.price).toLocaleString('ru-RU')} $
+                            </div>
+                            {bundle.flight.provider_offers?.[0]?.deep_link && (
+                              <a
+                                href={bundle.flight.provider_offers[0].deep_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
+                              >
+                                <span>Билет без наценки</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                         </div>
 
@@ -261,8 +275,21 @@ export default function AITravelAssistant({
                               </div>
                             </div>
                           </div>
-                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
-                            {Number(bundle.hotel.price).toLocaleString('ru-RU')} $
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 shrink-0">
+                            <div className="text-[13px] font-semibold text-[#111827]">
+                              {Number(bundle.hotel.price).toLocaleString('ru-RU')} $
+                            </div>
+                            {bundle.hotel.provider_offers?.[0]?.deep_link && (
+                              <a
+                                href={bundle.hotel.provider_offers[0].deep_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
+                              >
+                                <span>{bundle.hotel.provider_offers[0].provider}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                         </div>
 
@@ -286,8 +313,21 @@ export default function AITravelAssistant({
                               </div>
                             </div>
                           </div>
-                          <div className="text-[13px] font-semibold text-[#111827] sm:text-right shrink-0">
-                            {Number(bundle.transfer.price).toLocaleString('ru-RU')} $
+                          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 shrink-0">
+                            <div className="text-[13px] font-semibold text-[#111827]">
+                              {Number(bundle.transfer.price).toLocaleString('ru-RU')} $
+                            </div>
+                            {bundle.transfer.provider_offers?.[0]?.deep_link && (
+                              <a
+                                href={bundle.transfer.provider_offers[0].deep_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
+                              >
+                                <span>{bundle.transfer.provider_offers[0].provider}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>

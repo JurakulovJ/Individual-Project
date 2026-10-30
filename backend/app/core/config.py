@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     RAPIDAPI_KEY: str = "your_rapidapi_booking_key_here"
     RAPIDAPI_BOOKING_HOST: str = "booking-com15.p.rapidapi.com"
 
+    # SerpApi (Google Hotels & Google Flights Multi-Provider Comparison)
+    SERPAPI_API_KEY: str = "your_serpapi_key_here"
+
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
 
     model_config = SettingsConfigDict(
@@ -46,6 +49,14 @@ class Settings(BaseSettings):
             self.USE_LIVE_APIS
             and bool(self.RAPIDAPI_KEY)
             and self.RAPIDAPI_KEY.strip() not in ("", "your_rapidapi_booking_key_here", "your_key_here")
+        )
+
+    @property
+    def has_valid_serpapi_key(self) -> bool:
+        return (
+            self.USE_LIVE_APIS
+            and bool(self.SERPAPI_API_KEY)
+            and self.SERPAPI_API_KEY.strip() not in ("", "your_serpapi_key_here", "your_key_here")
         )
 
 

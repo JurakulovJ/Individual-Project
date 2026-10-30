@@ -6,8 +6,10 @@ import {
   ArrowLeft,
   Star,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
 import { searchTransfers } from '../../services/api';
+import { getTransferProviderOffers } from '../../services/deeplinks';
 
 export default function TransferResultsView({
   searchParams,
@@ -35,7 +37,7 @@ export default function TransferResultsView({
           setRouteLabel(data.route_label || '');
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -67,12 +69,15 @@ export default function TransferResultsView({
             </button>
             <div>
               <h1 className="text-[18px] font-bold text-[#111827]">
-                Трансферы: {routeLabel || 'Аэропорт Барселона (BCN) → Центр города / Отель'}
+                Трансферы:{' '}
+                {routeLabel ||
+                  `${searchParams.transferFrom || 'Аэропорт Стамбул (IST)'} → ${searchParams.transferTo || 'Центр города / Отель'
+                  }`}
               </h1>
               <p className="text-[12px] text-[#6B7280]">
                 Дата подачи: {searchParams.transferDate || 'пт, 30 окт.'} в{' '}
                 {searchParams.transferTime || '12:00'} •{' '}
-                {searchParams.transferPassengers || 2} взрослых
+                {searchParams.transferPassengers || 2} пассажиров
               </p>
             </div>
           </div>
@@ -90,68 +95,114 @@ export default function TransferResultsView({
           </div>
         ) : (
           <div className="space-y-4">
-            {transfers.map((tr) => (
-              <div
-                key={tr.id}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 flex flex-col md:flex-row items-center justify-between gap-6"
-              >
-                <div className="flex flex-col sm:flex-row items-center gap-5 flex-1">
-                  <img
-                    src={tr.image}
-                    alt={tr.vehicle_class}
-                    className="w-48 h-28 object-cover rounded-xl bg-gray-100 shrink-0"
-                  />
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[17px] font-bold text-[#111827]">
-                        {tr.vehicle_class}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs font-bold">
-                        <Star className="w-3 h-3 fill-current" />{' '}
-                        {tr.carrier_rating}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#6B7280]">{tr.models}</p>
+            {transfers.map((tr) => {
+              const offers =
+                tr.provider_offers?.length > 0
+                  ? tr.provider_offers
+                  : getTransferProviderOffers(tr, searchParams);
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs text-[#374151] pt-1">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-gray-500" /> до{' '}
-                        {tr.capacity} пассажиров
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Briefcase className="w-3.5 h-3.5 text-gray-500" />{' '}
-                        {tr.baggage_allowance} мест багажа
-                      </span>
-                      <span className="flex items-center gap-1 text-emerald-700 font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" />{' '}
-                        {tr.free_waiting_time}
-                      </span>
+              return (
+                <div
+                  key={tr.id}
+                  className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 space-y-4"
+                >
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-5 flex-1 w-full">
+                      <img
+                        src={tr.image}
+                        alt={tr.vehicle_class}
+                        className="w-48 h-28 object-cover rounded-xl bg-gray-100 shrink-0"
+                      />
+                      <div className="space-y-2 w-full">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[17px] font-bold text-[#111827]">
+                            {tr.vehicle_class}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs font-bold">
+                            <Star className="w-3 h-3 fill-current" />{' '}
+                            {tr.carrier_rating}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#6B7280]">{tr.models}</p>
+
+                        <div className="flex flex-wrap items-center gap-4 text-xs text-[#374151] pt-1">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5 text-gray-500" /> до{' '}
+                            {tr.capacity} пассажиров
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Briefcase className="w-3.5 h-3.5 text-gray-500" />{' '}
+                            {tr.baggage_allowance} мест багажа
+                          </span>
+                          <span className="flex items-center gap-1 text-emerald-700 font-medium">
+                            <CheckCircle2 className="w-3.5 h-3.5" />{' '}
+                            {tr.free_waiting_time}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0 flex flex-col items-end gap-2 border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto">
+                      <div>
+                        <div className="text-xs text-gray-400 line-through">
+                          {tr.old_price} $
+                        </div>
+                        <div className="text-[22px] font-extrabold text-[#111827] leading-none">
+                          от {offers[0]?.price || tr.price} $
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-0.5">
+                          за автомобиль • {tr.duration}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onSelectTransfer(tr)}
+                        className="px-5 py-2 rounded-xl border border-gray-300 hover:bg-gray-50 text-[#111827] font-semibold text-xs transition-all"
+                      >
+                        Оформить по безналу (B2B)
+                      </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="text-right shrink-0 flex flex-col items-end gap-2 border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto">
-                  <div>
-                    <div className="text-xs text-gray-400 line-through">
-                      {tr.old_price} $
-                    </div>
-                    <div className="text-[22px] font-extrabold text-[#2563EB] leading-none">
-                      {tr.price} $
-                    </div>
-                    <div className="text-[11px] text-gray-500 mt-0.5">
-                      за автомобиль • {tr.duration}
-                    </div>
+                  {/* Direct Transfer Comparison Row */}
+                  <div className="pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {offers.map((off) => (
+                      <a
+                        key={off.provider}
+                        href={off.deep_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all ${off.is_cheapest
+                            ? 'bg-[#FFFDF5] border-[#F6D04D] hover:bg-[#FFF8DB]'
+                            : 'bg-[#F8F9FA] border-gray-200 hover:bg-gray-100'
+                          }`}
+                      >
+                        <div>
+                          <div className="text-[12px] font-bold text-[#111827] flex items-center gap-1.5">
+                            <span>{off.provider}</span>
+                            {off.is_cheapest && (
+                              <span className="px-1.5 py-0.2 rounded bg-[#16A34A] text-white text-[9px] font-bold">
+                                Выгодно
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-[#6B7280]">
+                            {off.badge}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[14px] font-extrabold text-[#111827]">
+                            {off.price} $
+                          </span>
+                          <ExternalLink className="w-3.5 h-3.5 text-[#2563EB]" />
+                        </div>
+                      </a>
+                    ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onSelectTransfer(tr)}
-                    className="px-6 py-2.5 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-semibold text-xs transition-all"
-                  >
-                    Выбрать трансфер
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

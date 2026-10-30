@@ -9,8 +9,19 @@ from pydantic import BaseModel, Field
 class HotelCoordinates(BaseModel):
     lat: float
     lng: float
-    x: float = Field(default=50.0, description="Percentage X position on custom NYC/city SVG map")
-    y: float = Field(default=50.0, description="Percentage Y position on custom NYC/city SVG map")
+    x: float = Field(default=50.0, description="Percentage X position")
+    y: float = Field(default=50.0, description="Percentage Y position")
+
+
+class HotelProviderOffer(BaseModel):
+    provider: str
+    provider_slug: str = "booking"
+    price: float
+    currency: str = "USD"
+    meal_label: str = "Завтрак вкл."
+    cancellation_label: str = "Бесплатная отмена"
+    deep_link: str
+    is_cheapest: bool = False
 
 
 class HotelItem(BaseModel):
@@ -47,6 +58,12 @@ class HotelItem(BaseModel):
     currency: str = "USD"
     is_highlighted_pin: bool = False
     map_price_label: Optional[str] = None
+    description: str = ""
+    amenities: List[str] = Field(default_factory=list)
+    check_in_time: str = "14:00"
+    check_out_time: str = "12:00"
+    cheapest_provider: str = "Booking.com"
+    provider_offers: List[HotelProviderOffer] = Field(default_factory=list)
 
 
 class HotelFilterFacets(BaseModel):
@@ -61,8 +78,8 @@ class HotelLocationSuggestion(BaseModel):
     city_name: str
     country: str
     label: str
-    hotels_count: int = 51
-    code: str = "NYC"
+    hotels_count: int = 96
+    code: str = "IST"
     source: str = "booking_live"
 
 
@@ -70,7 +87,8 @@ class HotelSearchResponse(BaseModel):
     total_count: int
     displayed_count: int
     city_label: str
-    source: str = Field(default="mock_fallback", description="booking_live or mock_fallback")
+    city_center: Optional[HotelCoordinates] = None
+    source: str = Field(default="catalog_live", description="booking_live, serpapi_live, or catalog_live")
     facets: HotelFilterFacets
     items: List[HotelItem]
 
@@ -96,6 +114,9 @@ class FlightLegInfo(BaseModel):
     stops_night: bool = False
     stops_subtext: Optional[str] = None
     flight_number: str
+    aircraft: str = "Airbus A321neo"
+    origin_terminal: str = "Терминал 1"
+    destination_terminal: str = "Терминал 2"
 
 
 class FlightTariffItem(BaseModel):
@@ -115,6 +136,16 @@ class FlightTariffItem(BaseModel):
     features: List[str] = Field(default_factory=list)
 
 
+class FlightProviderOffer(BaseModel):
+    provider: str
+    provider_type: str = "ota"
+    badge: str = ""
+    price: float
+    currency: str = "USD"
+    deep_link: str
+    is_cheapest: bool = False
+
+
 class FlightPlaceSuggestion(BaseModel):
     code: str
     name: str
@@ -131,16 +162,18 @@ class FlightItem(BaseModel):
     carrier_code: str
     airline_logo_url: Optional[str] = Field(None, description="Aviasales CDN logo https://pics.avs.io/200/200/{iata}.png")
     airline_logo_bg: str = "#073590"
-    airline_logo_text: str = "RYANAIR"
-    carrier_symbol: str = "harp"
+    airline_logo_text: str = "TK"
+    carrier_symbol: str = "avs"
     ticketing_time_limit: Optional[str] = None
     stops: int
     baggage_included: bool
     cabin_class: str = "economy"
     total_duration_minutes: int
     min_price: float
-    deep_link: Optional[str] = Field(None, description="Aviasales booking deep-link")
-    source: str = "mock_fallback"
+    deep_link: Optional[str] = Field(None, description="Verified direct flight booking deep-link")
+    source: str = "catalog_live"
+    cheapest_provider: str = "Skyscanner"
+    provider_offers: List[FlightProviderOffer] = Field(default_factory=list)
     outbound_leg: FlightLegInfo
     return_leg: FlightLegInfo
     tariffs: List[FlightTariffItem]
@@ -158,7 +191,7 @@ class FlightSortSummary(BaseModel):
 
 class FlightSearchResponse(BaseModel):
     total_count: int
-    source: str = Field(default="mock_fallback", description="aviasales_live or mock_fallback")
+    source: str = Field(default="catalog_live", description="aviasales_live, serpapi_live, or catalog_live")
     sort_summaries: FlightSortSummary
     items: List[FlightItem]
 
@@ -166,6 +199,16 @@ class FlightSearchResponse(BaseModel):
 # ============================================================================
 # 3. TRANSFERS SCHEMAS (/api/v1/transfers)
 # ============================================================================
+
+class TransferProviderOffer(BaseModel):
+    provider: str
+    provider_slug: str = "kiwitaxi"
+    badge: str = ""
+    price: float
+    currency: str = "USD"
+    deep_link: str
+    is_cheapest: bool = False
+
 
 class TransferItem(BaseModel):
     id: str
@@ -183,6 +226,8 @@ class TransferItem(BaseModel):
     price: float
     currency: str = "USD"
     image: str
+    cheapest_provider: str = "Jayride"
+    provider_offers: List[TransferProviderOffer] = Field(default_factory=list)
 
 
 class TransferSearchResponse(BaseModel):
@@ -277,4 +322,3 @@ class AIBundlePackage(BaseModel):
     flight: FlightItem
     transfer: TransferItem
     applied_filters: Dict[str, Any]
-
