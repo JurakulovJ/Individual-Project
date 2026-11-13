@@ -198,7 +198,7 @@ class BookingHotelProvider(BaseHotelProvider):
             nights=nights,
         )
 
-        source_tag = "catalog_live"
+        source_tag = "mock" if settings.effective_mock_mode else "live"
 
         # Prepend live SerpApi Google Hotels properties if SERPAPI_API_KEY is configured
         if settings.has_valid_serpapi_key:

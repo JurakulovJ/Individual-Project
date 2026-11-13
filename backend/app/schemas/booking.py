@@ -60,6 +60,7 @@ class HotelItem(BaseModel):
     map_price_label: Optional[str] = None
     description: str = ""
     amenities: List[str] = Field(default_factory=list)
+    nearby_places: List[Dict[str, str]] = Field(default_factory=list)
     check_in_time: str = "14:00"
     check_out_time: str = "12:00"
     cheapest_provider: str = "Booking.com"
@@ -80,7 +81,7 @@ class HotelLocationSuggestion(BaseModel):
     label: str
     hotels_count: int = 96
     code: str = "IST"
-    source: str = "booking_live"
+    source: str = "mock"
 
 
 class HotelSearchResponse(BaseModel):
@@ -88,9 +89,10 @@ class HotelSearchResponse(BaseModel):
     displayed_count: int
     city_label: str
     city_center: Optional[HotelCoordinates] = None
-    source: str = Field(default="catalog_live", description="booking_live, serpapi_live, or catalog_live")
+    source: str = Field(default="mock", description="mock, live, or mixed")
     facets: HotelFilterFacets
     items: List[HotelItem]
+    errors: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 # ============================================================================
@@ -191,9 +193,10 @@ class FlightSortSummary(BaseModel):
 
 class FlightSearchResponse(BaseModel):
     total_count: int
-    source: str = Field(default="catalog_live", description="aviasales_live, serpapi_live, or catalog_live")
+    source: str = Field(default="mock", description="mock, live, or mixed")
     sort_summaries: FlightSortSummary
     items: List[FlightItem]
+    errors: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 # ============================================================================

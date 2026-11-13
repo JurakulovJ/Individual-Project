@@ -19,9 +19,10 @@ import {
 } from 'lucide-react';
 import { searchHotels } from '../../services/api';
 import HotelLeafletMap from './HotelLeafletMap';
+import HotelOffersModal from './HotelOffersModal';
 
 const FALLBACK_HOTEL_IMAGE =
-  'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80';
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80';
 
 function formatPluralVariants(count) {
   const mod10 = count % 10;
@@ -79,19 +80,23 @@ export default function HotelResultsView({
   const [cityCenter, setCityCenter] = useState(null);
   const [cityLabel, setCityLabel] = useState(
     searchParams.selectedCityShort ||
-      (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
-      'Нью-Йорк'
+    (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
+    'Нью-Йорк'
   );
   const [facets, setFacets] = useState({
     meal_counts: { RO: 26, BB: 48, HB: 12, FB: 6, AI: 6 },
     star_counts: { 5: 30, 4: 28, 3: 22, 2: 10, 0: 8 },
   });
   const [loading, setLoading] = useState(true);
+  const [sourceMode, setSourceMode] = useState('mock');
+  const [fetchError, setFetchError] = useState(null);
+  const [offersModalHotel, setOffersModalHotel] = useState(null);
 
   const cardRefs = useRef({});
 
   const fetchHotelResults = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const data = await searchHotels({
         destination: searchParams.hotelDestination || 'Нью-Йорк',
@@ -110,15 +115,16 @@ export default function HotelResultsView({
       const list = data.items || [];
       setHotels(list);
       setTotalCount(data.total_count ?? list.length);
+      setSourceMode(data.source || 'mock');
       setVisibleCount(20);
       if (data.city_center) {
         setCityCenter(data.city_center);
       }
       setCityLabel(
         data.city_label ||
-          searchParams.selectedCityShort ||
-          (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
-          'Нью-Йорк'
+        searchParams.selectedCityShort ||
+        (searchParams.hotelDestination || 'Нью-Йорк').split(',')[0].trim() ||
+        'Нью-Йорк'
       );
       if (list.length > 0) {
         setSelectedHotelPin(list[0].id);
@@ -127,7 +133,7 @@ export default function HotelResultsView({
         setFacets(data.facets);
       }
     } catch {
-      // Keep current list on transient network error
+      setFetchError('Не удалось загрузить список отелей. Попробуйте ещё раз.');
     } finally {
       setLoading(false);
     }
@@ -307,9 +313,8 @@ export default function HotelResultsView({
           {/* ================================================================= */}
           {!mapExpanded && (
             <aside
-              className={`${
-                mobileFiltersOpen ? 'block' : 'hidden'
-              } lg:block w-full lg:w-[250px] shrink-0 space-y-3`}
+              className={`${mobileFiltersOpen ? 'block' : 'hidden'
+                } lg:block w-full lg:w-[250px] shrink-0 space-y-3`}
             >
               {/* Search Summary Box */}
               <div
@@ -348,11 +353,10 @@ export default function HotelResultsView({
                       setViewMode('list');
                       setMapExpanded(false);
                     }}
-                    className={`py-1.5 text-[12px] rounded-md transition-colors ${
-                      viewMode === 'list'
+                    className={`py-1.5 text-[12px] rounded-md transition-colors ${viewMode === 'list'
                         ? 'font-semibold text-[#111827] bg-white shadow-sm'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     Список
                   </button>
@@ -363,11 +367,10 @@ export default function HotelResultsView({
                       setMapHidden(false);
                       setMapExpanded(true);
                     }}
-                    className={`py-1.5 text-[12px] rounded-md transition-colors ${
-                      viewMode === 'map'
+                    className={`py-1.5 text-[12px] rounded-md transition-colors ${viewMode === 'map'
                         ? 'font-semibold text-[#111827] bg-gray-100'
                         : 'text-[#6B7280]'
-                    }`}
+                      }`}
                   >
                     Карта
                   </button>
@@ -385,14 +388,12 @@ export default function HotelResultsView({
                 <button
                   type="button"
                   onClick={() => setFavoritesOnly(!favoritesOnly)}
-                  className={`w-9 h-5 rounded-full transition-colors p-0.5 ${
-                    favoritesOnly ? 'bg-[#F5C400]' : 'bg-gray-300'
-                  }`}
+                  className={`w-9 h-5 rounded-full transition-colors p-0.5 ${favoritesOnly ? 'bg-[#F5C400]' : 'bg-gray-300'
+                    }`}
                 >
                   <div
-                    className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      favoritesOnly ? 'translate-x-4' : 'translate-x-0'
-                    }`}
+                    className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${favoritesOnly ? 'translate-x-4' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -547,9 +548,16 @@ export default function HotelResultsView({
               {/* Header Box (`Стамбул: доступно 98 вариантов` + active filter chips) */}
               <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h1 className="text-[19px] font-bold text-[#111827]">
-                    {cityLabel}: {formatPluralVariants(totalCount)}
-                  </h1>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h1 className="text-[19px] font-bold text-[#111827]">
+                      {cityLabel}: {formatPluralVariants(totalCount)}
+                    </h1>
+                    {sourceMode === 'mock' && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                        Демо-данные
+                      </span>
+                    )}
+                  </div>
                   {loading && (
                     <Loader2 className="w-4 h-4 animate-spin text-[#6B7280]" />
                   )}
@@ -559,58 +567,58 @@ export default function HotelResultsView({
                   selectedMeals.length > 0 ||
                   mapBbox ||
                   hotelNameFilter) && (
-                  <>
-                    <div className="text-[12px] text-[#6B7280]">
-                      с применёнными фильтрами:
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                      {selectedStars.map((st) => (
-                        <span
-                          key={st}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-100 text-[12px] text-[#374151]"
-                        >
-                          <span>
-                            {st === 0 ? 'Без звёзд' : `${st} звёзд`}
+                    <>
+                      <div className="text-[12px] text-[#6B7280]">
+                        с применёнными фильтрами:
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        {selectedStars.map((st) => (
+                          <span
+                            key={st}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-100 text-[12px] text-[#374151]"
+                          >
+                            <span>
+                              {st === 0 ? 'Без звёзд' : `${st} звёзд`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleStarFilter(st)}
+                              className="text-gray-400 hover:text-gray-700"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => toggleStarFilter(st)}
-                            className="text-gray-400 hover:text-gray-700"
+                        ))}
+                        {selectedMeals.map((meal) => (
+                          <span
+                            key={meal}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-100 text-[12px] text-[#374151]"
                           >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                      {selectedMeals.map((meal) => (
-                        <span
-                          key={meal}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-100 text-[12px] text-[#374151]"
-                        >
-                          <span>Питание: {meal}</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleMealFilter(meal)}
-                            className="text-gray-400 hover:text-gray-700"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                      {mapBbox && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-[#F6D04D] text-[12px] text-[#111827] font-medium">
-                          <span>Область карты</span>
-                          <button
-                            type="button"
-                            onClick={() => setMapBbox(null)}
-                            className="hover:text-black"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
+                            <span>Питание: {meal}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleMealFilter(meal)}
+                              className="text-gray-400 hover:text-gray-700"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        {mapBbox && (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-[#F6D04D] text-[12px] text-[#111827] font-medium">
+                            <span>Область карты</span>
+                            <button
+                              type="button"
+                              onClick={() => setMapBbox(null)}
+                              className="hover:text-black"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
               </div>
 
               {/* Hotel Cards List */}
@@ -633,6 +641,19 @@ export default function HotelResultsView({
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : fetchError ? (
+                <div className="bg-white rounded-xl p-8 text-center border border-red-200 space-y-3">
+                  <div className="text-base font-bold text-[#111827]">
+                    {fetchError}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchHotelResults}
+                    className="px-4 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-xs font-bold"
+                  >
+                    Повторить
+                  </button>
                 </div>
               ) : filteredHotels.length === 0 ? (
                 <div className="bg-white rounded-xl p-8 text-center border border-gray-200 space-y-2">
@@ -674,11 +695,7 @@ export default function HotelResultsView({
                           cardRefs.current[hotel.id] = el;
                         }}
                         onMouseEnter={() => setSelectedHotelPin(hotel.id)}
-                        className={`w-full overflow-hidden flex flex-col sm:flex-row bg-white rounded-xl shadow-sm border transition-all ${
-                          isHighlighted
-                            ? 'border-[#2563EB] ring-1 ring-[#2563EB]/25 shadow-md'
-                            : 'border-gray-200/85 hover:shadow-md'
-                        }`}
+                        className="w-full overflow-hidden flex flex-col sm:flex-row bg-white rounded-xl shadow-sm border border-gray-200/85 hover:border-gray-300 hover:shadow-md transition-all"
                       >
                         {/* 1. Left Photo Thumbnail (`sm:w-[200px] shrink-0`) */}
                         <div
@@ -708,11 +725,10 @@ export default function HotelResultsView({
                             className="absolute top-2.5 left-2.5 w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-sm z-10"
                           >
                             <Heart
-                              className={`w-3.5 h-3.5 ${
-                                isFav
+                              className={`w-3.5 h-3.5 ${isFav
                                   ? 'text-[#DC2626] fill-current'
                                   : 'text-[#374151]'
-                              }`}
+                                }`}
                             />
                           </button>
 
@@ -809,11 +825,10 @@ export default function HotelResultsView({
                             </div>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-[11px]">
                               <span
-                                className={`inline-flex items-center gap-1 ${
-                                  hotel.meal_included
+                                className={`inline-flex items-center gap-1 ${hotel.meal_included
                                     ? 'text-[#16A34A] font-medium'
                                     : 'text-[#4B5563]'
-                                }`}
+                                  }`}
                               >
                                 <Utensils className="w-3 h-3 shrink-0" />
                                 <span className="truncate">
@@ -821,11 +836,10 @@ export default function HotelResultsView({
                                 </span>
                               </span>
                               <span
-                                className={`inline-flex items-center gap-1 ${
-                                  hotel.free_cancellation
+                                className={`inline-flex items-center gap-1 ${hotel.free_cancellation
                                     ? 'text-[#16A34A] font-medium'
                                     : 'text-[#4B5563]'
-                                }`}
+                                  }`}
                               >
                                 <RotateCcw className="w-3 h-3 shrink-0" />
                                 <span className="truncate">
@@ -882,10 +896,10 @@ export default function HotelResultsView({
 
                             <button
                               type="button"
-                              onClick={() => handleOpenDetail(hotel)}
-                              className="w-full px-3 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-[12px] font-bold transition-colors whitespace-nowrap text-center shadow-2xs"
+                              onClick={() => setOffersModalHotel(hotel)}
+                              className="w-full px-3 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-[12px] font-bold transition-colors whitespace-nowrap text-center shadow-2xs cursor-pointer"
                             >
-                              Показать все номера
+                              Смотреть цены
                             </button>
                           </div>
                         </div>
@@ -922,11 +936,10 @@ export default function HotelResultsView({
           {/* ================================================================= */}
           {!mapHidden && (
             <div
-              className={`${
-                mapExpanded
+              className={`${mapExpanded
                   ? 'w-full'
                   : 'hidden lg:block lg:w-[380px] xl:w-[440px] shrink-0'
-              } lg:sticky lg:top-[76px]`}
+                } lg:sticky lg:top-[76px]`}
             >
               <HotelLeafletMap
                 hotels={filteredHotels}
@@ -956,6 +969,16 @@ export default function HotelResultsView({
           )}
         </div>
       </div>
+
+      {/* Stage 4: Multi-Platform Hotel Offers Modal (`Смотреть цены`) */}
+      {offersModalHotel && (
+        <HotelOffersModal
+          hotel={offersModalHotel}
+          searchParams={searchParams}
+          onClose={() => setOffersModalHotel(null)}
+          onOpenFullDetail={(h) => handleOpenDetail(h)}
+        />
+      )}
     </div>
   );
 }

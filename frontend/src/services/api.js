@@ -71,6 +71,40 @@ export const searchHotels = async (params = {}) => {
   return response.data;
 };
 
+export const getHotelOffers = async (hotelId, params = {}) => {
+  const queryParams = {
+    check_in: params.checkIn || undefined,
+    check_out: params.checkOut || undefined,
+    adults: params.adults || 2,
+    rooms: params.rooms || 1,
+    currency: params.currency || 'USD',
+    hotel_name: params.hotelName || undefined,
+    city: params.city || undefined,
+  };
+  const response = await api.get(
+    `/hotels/${encodeURIComponent(hotelId)}/offers`,
+    { params: queryParams }
+  );
+  return response.data;
+};
+
+export const getHotelOfferRedirect = async (hotelId, provider, params = {}) => {
+  const queryParams = {
+    check_in: params.checkIn || undefined,
+    check_out: params.checkOut || undefined,
+    adults: params.adults || 2,
+    rooms: params.rooms || 1,
+    hotel_name: params.hotelName || undefined,
+    city: params.city || undefined,
+    deep_link: params.deepLink || undefined,
+  };
+  const response = await api.get(
+    `/hotels/${encodeURIComponent(hotelId)}/offers/${encodeURIComponent(provider)}/redirect`,
+    { params: queryParams }
+  );
+  return response.data;
+};
+
 // 4. Flights Autocomplete & Search (/api/v1/flights/*)
 export const autocompleteFlightPlaces = async (term = '', locale = 'ru') => {
   const response = await api.get('/flights/autocomplete', {
@@ -99,6 +133,25 @@ export const searchFlights = async (params = {}) => {
     sort_by: params.sortBy || 'cheapest',
   };
   const response = await api.get('/flights/search', { params: queryParams });
+  return response.data;
+};
+
+export const getFlightRedirect = async (flightId, params = {}) => {
+  const queryParams = {
+    provider: params.provider || undefined,
+    carrier_code: params.carrierCode || undefined,
+    origin: params.origin || undefined,
+    destination: params.destination || undefined,
+    departure_date: params.departureDate || undefined,
+    return_date: params.returnDate || undefined,
+    adults: params.adults || 1,
+    cabin_class: params.cabinClass || 'economy',
+    deep_link: params.deepLink || undefined,
+  };
+  const response = await api.get(
+    `/flights/${encodeURIComponent(flightId)}/redirect`,
+    { params: queryParams }
+  );
   return response.data;
 };
 

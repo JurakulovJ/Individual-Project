@@ -11,8 +11,9 @@ import {
   Clock,
   Check,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
-import { searchFlights } from '../../services/api';
+import { searchFlights, getFlightRedirect } from '../../services/api';
 import DatePickerPopover from '../search/DatePickerPopover';
 
 const AIRLINES = [
@@ -89,8 +90,39 @@ export default function FlightResultsView({
     return `${h}:${m}`;
   };
 
+  const [flightError, setFlightError] = useState(null);
+  const [redirectingFlightId, setRedirectingFlightId] = useState(null);
+
+  const handleBuyOnAirlineSite = async (flight) => {
+    setRedirectingFlightId(flight.id);
+    try {
+      const res = await getFlightRedirect(flight.id, {
+        carrierCode: flight.carrier_code,
+        origin: flight.outbound_leg?.origin_code,
+        destination: flight.outbound_leg?.destination_code,
+        departureDate: searchParams.flightDepDate,
+        returnDate: searchParams.flightRetDate,
+        adults: searchParams.flightPassengers || 1,
+        cabinClass: searchParams.cabinClass || 'economy',
+        deepLink: flight.deep_link || undefined,
+      });
+      const targetUrl = res?.target_url || flight.deep_link;
+      if (targetUrl) {
+        const win = window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        if (win) win.opener = null;
+      }
+    } catch {
+      if (flight.deep_link) {
+        window.open(flight.deep_link, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      setRedirectingFlightId(null);
+    }
+  };
+
   const fetchFlightResults = useCallback(async () => {
     setLoading(true);
+    setFlightError(null);
     try {
       const data = await searchFlights({
         tripType: searchParams.flightTripType,
@@ -112,12 +144,12 @@ export default function FlightResultsView({
       });
       setFlights(data.items || []);
       setVisibleCount(20);
-      setProviderSource(data.source || 'catalog_live');
+      setProviderSource(data.source || 'mock');
       if (data.sort_summaries) {
         setSortSummaries(data.sort_summaries);
       }
     } catch {
-      // Keep existing list on transient error
+      setFlightError('Не удалось загрузить рейсы. Проверьте соединение и попробуйте снова.');
     } finally {
       setLoading(false);
     }
@@ -653,6 +685,19 @@ export default function FlightResultsView({
                 </div>
               ))}
             </div>
+          ) : flightError ? (
+            <div className="bg-white rounded-2xl p-8 text-center border border-red-200 space-y-3">
+              <div className="text-base font-bold text-[#111827]">
+                {flightError}
+              </div>
+              <button
+                type="button"
+                onClick={fetchFlightResults}
+                className="px-4 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-xs font-bold"
+              >
+                Повторить
+              </button>
+            </div>
           ) : flights.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-gray-200 space-y-2">
               <div className="text-base font-bold text-[#111827]">
@@ -678,13 +723,20 @@ export default function FlightResultsView({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between px-1 text-[13px] text-[#4B5563]">
-                <span>
-                  Найдено вариантов перелёта:{' '}
-                  <strong className="text-[#111827]">{flights.length}</strong>
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[13px] text-[#4B5563]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>
+                    Найдено вариантов перелёта:{' '}
+                    <strong className="text-[#111827]">{flights.length}</strong>
+                  </span>
+                  {providerSource === 'mock' && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                      Демо-данные
+                    </span>
+                  )}
+                </div>
                 <span className="text-[12px] text-[#6B7280]">
-                  Прямое сравнение тарифов авиакомпаний и агентств
+                  Прямое сравнение тарифов официальных авиакомпаний
                 </span>
               </div>
 
@@ -1072,7 +1124,22 @@ export default function FlightResultsView({
                         })}
                       </div>
 
-                      <div className="flex flex-col items-end gap-1.5 shrink-0 self-end sm:self-center">
+                      <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          disabled={redirectingFlightId === flight.id}
+                          onClick={() => handleBuyOnAirlineSite(flight)}
+                          className="h-[42px] px-4 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] disabled:opacity-60 text-[#111827] font-bold text-[12.5px] inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs whitespace-nowrap cursor-pointer"
+                        >
+                          {redirectingFlightId === flight.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <span>Купить на сайте авиакомпании</span>
+                              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                            </>
+                          )}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -1086,13 +1153,10 @@ export default function FlightResultsView({
                               onSelectFlightTariff(flight, chosen);
                             }
                           }}
-                          className="h-[42px] px-7 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] font-bold text-[14px] transition-all shadow-2xs"
+                          className="text-[11.5px] font-semibold text-[#2563EB] hover:underline cursor-pointer text-right"
                         >
-                          Выбрать
+                          Детали рейса и тарифы ({flight.airline_name}) →
                         </button>
-                        <span className="text-[11px] text-[#6B7280]">
-                          4 предложения от {flight.cheapest_provider || 'Skyscanner'}
-                        </span>
                       </div>
                     </div>
                   </div>

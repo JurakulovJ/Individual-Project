@@ -118,3 +118,324 @@ class MockProvider:
 
 
 mock_provider = MockProvider()
+
+
+# ============================================================================
+# STAGE 2: UNIFIED MOCK ADAPTER FOR HOTELS & FLIGHTS (`source="mock"`)
+# ============================================================================
+
+from datetime import datetime
+from urllib.parse import quote_plus
+from app.adapters.base import FlightProvider, HotelProvider
+from app.schemas.providers import (
+    NormalizedFlightOffer,
+    NormalizedHotel,
+    NormalizedHotelOffer,
+    RedirectResponseSchema,
+    TripadvisorContentData,
+)
+from app.services.deeplinks import (
+    build_agoda_hotel_url,
+    build_booking_hotel_url,
+    build_official_airline_url,
+    build_tripcom_hotel_url,
+    normalize_to_iso_date,
+    resolve_iata_code,
+)
+
+
+def _calc_nights(check_in: Optional[str], check_out: Optional[str]) -> int:
+    try:
+        ci = datetime.strptime(normalize_to_iso_date(check_in, "2026-11-12"), "%Y-%m-%d")
+        co = datetime.strptime(normalize_to_iso_date(check_out, "2026-11-19"), "%Y-%m-%d")
+        diff = (co - ci).days
+        return max(1, min(90, diff)) if diff > 0 else 7
+    except Exception:
+        return 7
+
+
+class MockAdapter(HotelProvider, FlightProvider):
+    """
+    Deterministic Mock Adapter activated automatically when all live providers are disabled
+    or when USE_MOCK_PROVIDERS=true. Always sets `"source": "mock"`.
+    """
+
+    provider_name: str = "mock"
+    provider_label: str = "Mock Demo Provider"
+    docs_url: str = "local://mock-adapter"
+
+    def is_enabled(self) -> bool:
+        return True
+
+    async def search_hotels(
+        self,
+        query: str,
+        check_in: Optional[str] = None,
+        check_out: Optional[str] = None,
+        adults: int = 2,
+        rooms: int = 1,
+        currency: str = "USD",
+    ) -> List[NormalizedHotel]:
+        from app.services.catalog_engine import generate_city_hotels
+
+        nights = _calc_nights(check_in, check_out)
+        items, city_label, _ = generate_city_hotels(
+            destination=query or "Стамбул",
+            check_in=check_in,
+            check_out=check_out,
+            guests=adults,
+            rooms=rooms,
+            nights=nights,
+        )
+        normalized: List[NormalizedHotel] = []
+        for h in items[:25]:
+            per_night = round(h.total_price / max(1, nights), 2)
+            offers = await self.get_offers(
+                hotel_id=h.id,
+                check_in=check_in,
+                check_out=check_out,
+                adults=adults,
+                rooms=rooms,
+                currency=currency,
+                hotel_name=h.name,
+                city=h.city_en,
+                base_total_price=h.total_price,
+            )
+            normalized.append(
+                NormalizedHotel(
+                    id=h.id,
+                    name=h.name,
+                    city=h.city,
+                    stars=h.stars,
+                    rating=h.rating,
+                    reviews_count=h.reviews_count,
+                    address=h.address,
+                    latitude=h.coordinates.lat,
+                    longitude=h.coordinates.lng,
+                    price_per_night=per_night,
+                    total_price=h.total_price,
+                    currency=currency.upper(),
+                    images=h.images,
+                    amenities=h.amenities,
+                    source="mock",
+                    offers=offers,
+                )
+            )
+        return normalized
+
+    async def get_offers(
+        self,
+        hotel_id: str,
+        check_in: Optional[str] = None,
+        check_out: Optional[str] = None,
+        adults: int = 2,
+        rooms: int = 1,
+        currency: str = "USD",
+        hotel_name: Optional[str] = None,
+        city: Optional[str] = None,
+        base_total_price: Optional[float] = None,
+    ) -> List[NormalizedHotelOffer]:
+        nights = _calc_nights(check_in, check_out)
+        resolved_name = hotel_name or "Hilton Tashkent City"
+        resolved_city = city or "Tashkent"
+
+        if base_total_price is None:
+            seed = sum(ord(c) for c in str(hotel_id))
+            per_night_base = 185.0 + (seed % 110)
+            base_total = round(per_night_base * nights, 2)
+        else:
+            base_total = round(float(base_total_price), 2)
+
+        platforms = [
+            ("booking", "Booking.com", 1.00, "BB", "Завтрак включён", True, "Официальный партнёр Booking.com"),
+            ("agoda", "Agoda", 1.03, "BB", "Завтрак включён", True, "Спецтариф Agoda Partner"),
+            ("tripcom", "Trip.com", 1.06, "BB", "Завтрак включён", True, "Официальный партнёр Trip.com"),
+        ]
+        # Deterministic rotation of cheapest platform by hotel_id
+        rot = sum(ord(c) for c in str(hotel_id)) % len(platforms)
+        multipliers = [1.00, 1.035, 1.065]
+
+        offers: List[NormalizedHotelOffer] = []
+        for idx, (p_key, p_label, _, meal_code, meal_lbl, free_canc, badge) in enumerate(platforms):
+            mult = multipliers[(idx - rot) % len(multipliers)]
+            tot = round(base_total * mult, 0)
+            per_n = round(tot / max(1, nights), 2)
+            offers.append(
+                NormalizedHotelOffer(
+                    provider=p_key,
+                    provider_label=p_label,
+                    hotel_id=str(hotel_id),
+                    hotel_name=resolved_name,
+                    room_name="Двухместный номер Standard / Superior",
+                    meal_plan=meal_code,
+                    meal_label=meal_lbl,
+                    free_cancellation=free_canc,
+                    price_per_night=per_n,
+                    total_price=tot,
+                    nights=nights,
+                    currency=currency.upper(),
+                    is_cheapest=(mult == 1.00),
+                    link_type="search",
+                    deep_link=None,
+                    redirect_endpoint=f"/api/v1/hotels/{hotel_id}/offers/{p_key}/redirect",
+                    badge=badge,
+                )
+            )
+        offers.sort(key=lambda o: o.total_price)
+        for i, off in enumerate(offers):
+            off.is_cheapest = i == 0
+        return offers
+
+    def get_mock_tripadvisor_content(self, hotel_id: str, hotel_name: str, city: str) -> TripadvisorContentData:
+        return TripadvisorContentData(
+            location_id=f"ta-mock-{hotel_id}",
+            name=hotel_name,
+            description=(
+                f"Отель {hotel_name} ({city}) отмечен высокими оценками путешественников Tripadvisor "
+                "за качество сервиса, чистоту номеров и удобное расположение."
+            ),
+            rating=9.2,
+            num_reviews=432,
+            web_url=f"https://www.tripadvisor.com/Search?q={quote_plus(f'{hotel_name} {city}')}",
+            photos=[
+                "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80",
+                "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=900&q=80",
+            ],
+            reviews=[
+                {
+                    "id": "rev-1",
+                    "title": "Безупречный сервис и комфорт",
+                    "text": "Отличный завтрак, просторный номер и быстрая регистрация.",
+                    "rating": 5,
+                    "published_date": "2026-10-15",
+                }
+            ],
+            source="mock",
+        )
+
+    async def build_redirect_url(
+        self,
+        hotel_id: str,
+        check_in: Optional[str] = None,
+        check_out: Optional[str] = None,
+        adults: int = 2,
+        rooms: int = 1,
+        hotel_name: Optional[str] = None,
+        city: Optional[str] = None,
+        deep_link: Optional[str] = None,
+        provider: str = "booking",
+    ) -> RedirectResponseSchema:
+        p_low = (provider or "booking").lower()
+        name = hotel_name or str(hotel_id)
+        city_val = city or "Tashkent"
+
+        if "agoda" in p_low:
+            url = build_agoda_hotel_url(name, city_val, check_in, check_out, adults, rooms)
+            label = "Agoda"
+            p_norm = "agoda"
+        elif "trip" in p_low:
+            url = build_tripcom_hotel_url(name, city_val, check_in, check_out, adults, rooms)
+            label = "Trip.com"
+            p_norm = "tripcom"
+        else:
+            url = build_booking_hotel_url(name, city_val, check_in, check_out, adults, rooms)
+            label = "Booking.com"
+            p_norm = "booking"
+
+        return RedirectResponseSchema(
+            item_id=str(hotel_id),
+            provider=p_norm,
+            provider_label=label,
+            target_url=url,
+            link_type="search",
+            source="mock",
+        )
+
+    async def search_flights(
+        self,
+        origin: str,
+        destination: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+        adults: int = 1,
+        cabin_class: str = "economy",
+        currency: str = "USD",
+    ) -> List[NormalizedFlightOffer]:
+        orig_iata = resolve_iata_code(origin, "TAS")
+        dest_iata = resolve_iata_code(destination, "IST")
+        dep_iso = normalize_to_iso_date(departure_date, "2026-11-19")
+
+        sample_carriers = [
+            ("lufthansa", "Lufthansa", "LH", f"LH-647", "08:15", "12:10", 235, 0, 295.0),
+            ("turkish_airlines", "Turkish Airlines", "TK", f"TK-369", "10:40", "14:15", 215, 0, 315.0),
+            ("transavia", "Transavia", "HV", f"HV-512", "15:20", "19:45", 265, 1, 240.0),
+        ]
+        offers: List[NormalizedFlightOffer] = []
+        for idx, (prov, name, code, fnum, d_t, a_t, dur, stops, base_p) in enumerate(sample_carriers):
+            fid = f"flt-{orig_iata.lower()}-{dest_iata.lower()}-{idx}"
+            price = round(base_p * max(1, adults), 2)
+            offers.append(
+                NormalizedFlightOffer(
+                    flight_id=fid,
+                    provider=prov,
+                    airline_name=name,
+                    carrier_code=code,
+                    flight_number=fnum,
+                    origin=orig_iata,
+                    destination=dest_iata,
+                    departure_time=d_t,
+                    arrival_time=a_t,
+                    duration_minutes=dur,
+                    stops=stops,
+                    cabin_class=cabin_class,
+                    baggage_included=(stops == 0),
+                    price=price,
+                    currency=currency.upper(),
+                    is_cheapest=(idx == 2),
+                    link_type="search",
+                    deep_link=build_official_airline_url(code, orig_iata, dest_iata, dep_iso, return_date, adults),
+                    redirect_endpoint=f"/api/v1/flights/{fid}/redirect?provider={prov}",
+                    source="mock",
+                )
+            )
+        offers.sort(key=lambda x: x.price)
+        for i, o in enumerate(offers):
+            o.is_cheapest = i == 0
+        return offers
+
+    async def build_flight_redirect_url(
+        self,
+        flight_id: str,
+        origin: str,
+        destination: str,
+        departure_date: str,
+        return_date: Optional[str] = None,
+        adults: int = 1,
+        carrier_code: str = "LH",
+        provider: str = "lufthansa",
+    ) -> RedirectResponseSchema:
+        orig_iata = resolve_iata_code(origin, "TAS")
+        dest_iata = resolve_iata_code(destination, "IST")
+        dep_iso = normalize_to_iso_date(departure_date, "2026-11-19")
+        ret_iso = normalize_to_iso_date(return_date, "2026-11-26") if return_date else None
+
+        url = build_official_airline_url(
+            carrier_code=carrier_code,
+            origin_iata=orig_iata,
+            dest_iata=dest_iata,
+            departure_date=dep_iso,
+            return_date=ret_iso,
+            adults=max(1, adults),
+        )
+        return RedirectResponseSchema(
+            item_id=str(flight_id),
+            provider=provider,
+            provider_label=provider.replace("_", " ").title(),
+            target_url=url,
+            link_type="search",
+            source="mock",
+        )
+
+
+mock_adapter = MockAdapter()
+

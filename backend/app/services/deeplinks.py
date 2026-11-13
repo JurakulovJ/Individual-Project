@@ -590,3 +590,113 @@ def build_transfer_provider_offers(
         },
     ]
 
+
+# ============================================================================
+# 4. OFFICIAL PLATFORM REDIRECT HELPERS (STAGE 2 & STAGE 3 ADAPTERS)
+# ============================================================================
+
+def build_booking_hotel_url(
+    hotel_name: str,
+    city: str,
+    check_in: Optional[str] = None,
+    check_out: Optional[str] = None,
+    adults: int = 2,
+    rooms: int = 1,
+) -> str:
+    return build_booking_com_hotel_link(
+        hotel_name=hotel_name,
+        city=city,
+        check_in=check_in,
+        check_out=check_out,
+        adults=adults,
+        rooms=rooms,
+    )
+
+
+def build_agoda_hotel_url(
+    hotel_name: str,
+    city: str,
+    check_in: Optional[str] = None,
+    check_out: Optional[str] = None,
+    adults: int = 2,
+    rooms: int = 1,
+) -> str:
+    ci = normalize_to_iso_date(check_in, "2026-11-12")
+    co = normalize_to_iso_date(check_out, "2026-11-19")
+    search_term = quote_plus(f"{hotel_name} {city}".strip())
+    return (
+        f"https://www.agoda.com/partners/partnersearch.aspx"
+        f"?pcs=1&cid=-1&checkIn={ci}&checkOut={co}"
+        f"&rooms={max(1, rooms)}&adults={max(1, adults)}"
+        f"&textToSearch={search_term}"
+    )
+
+
+def build_tripcom_hotel_url(
+    hotel_name: str,
+    city: str,
+    check_in: Optional[str] = None,
+    check_out: Optional[str] = None,
+    adults: int = 2,
+    rooms: int = 1,
+) -> str:
+    return build_trip_com_hotel_link(
+        hotel_name=hotel_name,
+        city=city,
+        check_in=check_in,
+        check_out=check_out,
+        adults=adults,
+        rooms=rooms,
+    )
+
+
+def build_official_airline_url(
+    carrier_code: str,
+    origin_iata: str,
+    dest_iata: str,
+    departure_date: Optional[str] = None,
+    return_date: Optional[str] = None,
+    adults: int = 1,
+) -> str:
+    code = (carrier_code or "LH").upper()
+    orig = resolve_iata_code(origin_iata, "TAS")
+    dest = resolve_iata_code(dest_iata, "IST")
+    dep = normalize_to_iso_date(departure_date, "2026-11-19")
+    ret = normalize_to_iso_date(return_date, "2026-11-26") if return_date else ""
+    adt = max(1, adults)
+
+    if code in ("LH", "LX", "OS", "SN"):
+        url = (
+            f"https://www.lufthansa.com/xx/en/flight-search"
+            f"?origin={quote_plus(orig)}&destination={quote_plus(dest)}"
+            f"&outboundDate={dep}&adults={adt}"
+        )
+        if ret:
+            url += f"&inboundDate={ret}"
+        return url
+    if code == "TK":
+        return (
+            f"https://www.turkishairlines.com/en-int/flights/booking/"
+            f"?origin={quote_plus(orig)}&destination={quote_plus(dest)}"
+            f"&departureDate={dep}&adults={adt}"
+        )
+    if code in ("HV", "TO"):
+        return (
+            f"https://www.transavia.com/en-EU/book-a-flight/flights/search/"
+            f"?route={quote_plus(orig)}-{quote_plus(dest)}&date={dep}&adults={adt}"
+        )
+    if code == "HY":
+        return (
+            f"https://www.uzairways.com/ru?from={quote_plus(orig)}&to={quote_plus(dest)}"
+            f"&date={dep}&adults={adt}"
+        )
+    return build_google_flights_carrier_link(
+        airline_name=code,
+        origin_iata=orig,
+        dest_iata=dest,
+        departure_date=dep,
+        return_date=ret or None,
+        is_one_way=not bool(ret),
+    )
+
+

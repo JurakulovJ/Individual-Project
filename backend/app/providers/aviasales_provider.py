@@ -154,9 +154,10 @@ class AviasalesFlightProvider(BaseFlightProvider):
             trip_type=trip_type,
         )
 
+        source_tag = "mock" if settings.effective_mock_mode else "live"
         return self._apply_post_filters_and_sort(
             items=pool,
-            source="catalog_live",
+            source=source_tag,
             airline=airline,
             stops=stops,
             baggage_included=baggage_included,

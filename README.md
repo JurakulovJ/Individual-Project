@@ -11,7 +11,11 @@ TravelAI is designed with a modern decoupled monorepo architecture:
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, Axios, React Router DOM
 - **Backend**: Python 3.10+ (tested on Python 3.13), FastAPI (REST API), SQLAlchemy (ORM), Pydantic v2 (Data Validation), Uvicorn (ASGI)
 - **AI Engine**: Google GenAI (`google-genai`) & OpenAI SDK for natural language constraint extraction and dynamic itinerary synthesis
-- **Data & Adapters**: Pluggable provider architecture with built-in Mock mode (works offline without API keys), Amadeus Travel API, and Google Places & Maps
+- **Official Provider Integration Layer (`backend/app/adapters/`)**:
+  - **Hotels**: `BookingDemandAdapter` (Booking.com Demand API v3.1), `AgodaAdapter` (Agoda Affiliate Lite API), `TripComAdapter` (Trip.com Partner API skeleton + official search redirect), `TripadvisorContentAdapter` (Tripadvisor Content API v1 — content-only: description, photos, rating, reviews; no prices)
+  - **Flights**: `LufthansaGroupAdapter` (Lufthansa Group Open API OAuth2 + schedules/status/seatmaps/reference data), `TurkishAirlinesNDCAdapter` (skeleton), `TransaviaAdapter` (skeleton)
+  - **Mock Mode (`MockAdapter`)**: Works out-of-the-box (`"source": "mock"`) without external keys and automatically switches per-provider when keys are added to `backend/.env`
+  - **Deprecated**: `AmadeusAdapter` is marked `@deprecated` (Amadeus Self-Service shuts down on **17.07.2026**) and disabled by default. See [`docs/PROVIDERS.md`](docs/PROVIDERS.md) for full details.
 
 ---
 
@@ -24,6 +28,7 @@ travelai-platform/
 ├── README.md                 # Complete project guide & run instructions
 ├── docs/                     # Architectural documents & UI/data contracts
 │   ├── ARCHITECTURE.md
+│   ├── PROVIDERS.md          # Official Hotel & Airline API Providers Guide
 │   └── UI_DATA_CONTRACT.md
 ├── backend/                  # FastAPI Application
 │   ├── .env                  # Backend environment settings
@@ -188,23 +193,45 @@ Key variables in `backend/.env`:
 
 ```ini
 APP_ENV=development
-USE_MOCK_PROVIDERS=true           # Set to 'false' to use real external APIs
+USE_MOCK_PROVIDERS=true           # Set to 'false' when enabling live provider keys below
 DATABASE_URL=sqlite:///./travelai.db
 
-# AI Engine (Optional for live generation)
-GEMINI_API_KEY=your_gemini_api_key_here
-LLM_API_KEY=your_openai_api_key_here
+# Official Hotel APIs (Optional — each provider activates automatically when keys are set)
+BOOKING_DEMAND_API_TOKEN=
+BOOKING_AFFILIATE_ID=
+AGODA_SITE_ID=
+AGODA_API_KEY=
+TRIPCOM_ALLIANCE_ID=
+TRIPCOM_SID=
+TRIPCOM_API_KEY=
 
-# External Travel APIs (Optional for live flight/hotel data)
-AMADEUS_CLIENT_ID=your_amadeus_client_id
-AMADEUS_CLIENT_SECRET=your_amadeus_client_secret
-GOOGLE_MAPS_API_KEY=your_google_maps_key
+# Tripadvisor Content API v1 (Content only: description, photos, rating, reviews — no prices)
+TRIPADVISOR_API_KEY=
+TRIPADVISOR_DAILY_QUOTA=160
+
+# Official Airline APIs
+LUFTHANSA_CLIENT_ID=
+LUFTHANSA_CLIENT_SECRET=
+LUFTHANSA_PARTNER_ID=
+TURKISH_AIRLINES_API_KEY=
+TURKISH_AIRLINES_API_SECRET=
+TRANSAVIA_API_KEY=
+
+# AI Engine (Optional for live generation)
+GEMINI_API_KEY=
+LLM_API_KEY=
+
+# Deprecated (Amadeus Self-Service shuts down 2026-07-17 — disabled by default)
+AMADEUS_CLIENT_ID=
+AMADEUS_CLIENT_SECRET=
 
 # Network & CORS
 HOST=0.0.0.0
 PORT=8000
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
+
+For full documentation on each official provider, rate limits, quotas, and where to obtain partner keys, see **[`docs/PROVIDERS.md`](docs/PROVIDERS.md)**.
 
 ---
 
