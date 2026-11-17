@@ -5,11 +5,15 @@ import {
   Search,
   Plus,
   Minus,
-  EyeOff,
   MapPin,
+  Ruler,
+  Flag,
 } from 'lucide-react';
 
 const CITY_COORD_LOOKUP = {
+  бали: [-8.65, 115.2167],
+  bali: [-8.65, 115.2167],
+  индонезия: [-8.65, 115.2167],
   стамбул: [41.015, 28.9795],
   istanbul: [41.015, 28.9795],
   'нью-йорк': [40.7553, -73.9832],
@@ -55,7 +59,7 @@ function resolveCenterCoords(cityCenter, cityLabel, hotels) {
 export default function HotelLeafletMap({
   hotels = [],
   cityCenter = null,
-  cityLabel = 'Стамбул',
+  cityLabel = 'Бали',
   selectedHotelId = null,
   onSelectPin,
   onOpenHotelDetail,
@@ -76,8 +80,10 @@ export default function HotelLeafletMap({
     typeof window !== 'undefined' && Boolean(window.L)
   );
   const [leafletFailed, setLeafletFailed] = useState(false);
+  const [rulerActive, setRulerActive] = useState(false);
+  const [flagActive, setFlagActive] = useState(true);
 
-  // Ensure Leaflet is loaded (in case index.html script finished slightly later)
+  // Ensure Leaflet is loaded
   useEffect(() => {
     if (window.L) {
       setLeafletReady(true);
@@ -112,18 +118,26 @@ export default function HotelLeafletMap({
       return;
     }
     const L = window.L;
+    const isBali = String(cityLabel || '').toLowerCase().includes('бали') ||
+      String(cityLabel || '').toLowerCase().includes('bali');
+    const initialZoom = isBali ? 10 : 12;
+
     const map = L.map(mapContainerRef.current, {
       center: [centerLat, centerLng],
-      zoom: 13,
+      zoom: initialZoom,
       zoomControl: false,
       attributionControl: true,
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">Участники OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(map);
+
+    if (L.control && L.control.scale) {
+      L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+    }
 
     const layerGroup = L.layerGroup().addTo(map);
     mapInstanceRef.current = map;
@@ -141,9 +155,16 @@ export default function HotelLeafletMap({
   // Invalidate size when mapExpanded toggles so tiles fill full width cleanly
   useEffect(() => {
     if (mapInstanceRef.current) {
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         mapInstanceRef.current?.invalidateSize();
-      }, 150);
+      }, 60);
+      const t2 = setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 240);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [mapExpanded]);
 
@@ -154,9 +175,11 @@ export default function HotelLeafletMap({
     const nextKey = `${centerLat.toFixed(3)},${centerLng.toFixed(3)}`;
     if (lastCenterKeyRef.current !== nextKey) {
       lastCenterKeyRef.current = nextKey;
-      map.flyTo([centerLat, centerLng], 13, { duration: 0.85 });
+      const isBali = String(cityLabel || '').toLowerCase().includes('бали') ||
+        String(cityLabel || '').toLowerCase().includes('bali');
+      map.flyTo([centerLat, centerLng], isBali ? 10 : 12, { duration: 0.75 });
     }
-  }, [centerLat, centerLng]);
+  }, [centerLat, centerLng, cityLabel]);
 
   // Bind optional moveend bbox filter
   useEffect(() => {
@@ -179,7 +202,7 @@ export default function HotelLeafletMap({
     };
   }, [searchOnMapMove, onBoundsFilter]);
 
-  // Plot custom HTML price pills (`3 430 $`) + cluster badges (`28`, `14`) for hotels
+  // Plot custom RateHawk HTML price callouts (`1606 $`) + dark cluster badges (`19`, `39`, `80`) + optional Flag marker
   useEffect(() => {
     const L = window.L;
     const map = mapInstanceRef.current;
@@ -189,9 +212,8 @@ export default function HotelLeafletMap({
     layer.clearLayers();
     if (!hotels || hotels.length === 0) return;
 
-    // Show first 28 hotels as interactive RateHawk price pills, and group remaining into neighborhood clusters
-    const individualHotels = hotels.slice(0, 28);
-    const remainingHotels = hotels.slice(28);
+    const individualHotels = hotels.slice(0, 12);
+    const clusterSeedHotels = hotels.slice(6);
 
     individualHotels.forEach((hotel) => {
       const lat = hotel.coordinates?.lat;
@@ -202,37 +224,56 @@ export default function HotelLeafletMap({
       const priceText = `${Number(hotel.total_price || 0).toLocaleString('ru-RU')} $`;
 
       const pillHtml = `
-        <div style="
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          white-space:nowrap;
-          padding:3px 8px;
-          border-radius:9999px;
-          font-family:Inter,sans-serif;
-          font-size:11px;
-          font-weight:700;
-          box-shadow:0 2px 6px rgba(0,0,0,0.22);
-          border:1.5px solid ${isActive ? '#111827' : '#D1D5DB'};
-          background:${isActive ? '#F6D04D' : '#FFFFFF'};
-          color:#111827;
-          transform:${isActive ? 'scale(1.12)' : 'scale(1)'};
-          transition:transform 0.15s ease;
-        ">
-          ${priceText}
+        <div style="display:flex;flex-direction:column;align-items:center;transform:${
+          isActive ? 'scale(1.12)' : 'scale(1)'
+        };transition:transform 0.15s ease;">
+          <div style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            white-space:nowrap;
+            padding:3px 8px;
+            border-radius:8px;
+            font-family:Inter,sans-serif;
+            font-size:12.5px;
+            font-weight:700;
+            box-shadow:0 2px 6px rgba(0,0,0,0.28);
+            border:1.5px solid ${isActive ? '#111827' : '#FFFFFF'};
+            background:${isActive ? '#FFE047' : '#FFFFFF'};
+            color:#111827;
+            line-height:1.2;
+          ">
+            ${priceText}
+          </div>
+          <div style="
+            width:0;
+            height:0;
+            border-left:5px solid transparent;
+            border-right:5px solid transparent;
+            border-top:5px solid ${isActive ? '#111827' : '#FFFFFF'};
+            margin-top:-1px;
+          "></div>
+          <div style="
+            width:7px;
+            height:7px;
+            border-radius:9999px;
+            background:#262930;
+            border:1.5px solid #FFFFFF;
+            box-shadow:0 1px 3px rgba(0,0,0,0.4);
+          "></div>
         </div>
       `;
 
       const icon = L.divIcon({
         className: 'rh-custom-price-pin',
         html: pillHtml,
-        iconSize: [74, 26],
-        iconAnchor: [37, 13],
+        iconSize: [78, 36],
+        iconAnchor: [39, 34],
       });
 
       const marker = L.marker([lat, lng], {
         icon,
-        zIndexOffset: isActive ? 900 : 100,
+        zIndexOffset: isActive ? 950 : 200,
       });
 
       marker.on('click', () => {
@@ -244,90 +285,109 @@ export default function HotelLeafletMap({
 
       const starsStr = '★'.repeat(Math.max(0, hotel.stars || 0));
       marker.bindTooltip(
-        `<div style="font-family:Inter,sans-serif;font-size:11px;line-height:1.35;padding:2px 4px;">
-          <div style="color:#F59E0B;font-size:10px;">${starsStr}</div>
+        `<div style="font-family:Inter,sans-serif;font-size:12px;line-height:1.35;padding:3px 5px;">
+          <div style="color:#F59E0B;font-size:11px;">${starsStr}</div>
           <div style="font-weight:700;color:#111827;">${hotel.name}</div>
-          <div style="color:#16A34A;font-weight:600;">Оценка ${hotel.rating_label} • ${priceText}</div>
+          <div style="color:#1FA614;font-weight:700;">Оценка ${hotel.rating_label} • ${priceText}</div>
         </div>`,
-        { direction: 'top', offset: [0, -10] }
+        { direction: 'top', offset: [0, -28] }
       );
 
       layer.addLayer(marker);
     });
 
-    // Build neighborhood clusters for hotels beyond the first 28
-    if (remainingHotels.length > 0) {
-      const buckets = {};
-      remainingHotels.forEach((h) => {
-        const lat = h.coordinates?.lat;
-        const lng = h.coordinates?.lng;
-        if (typeof lat !== 'number' || typeof lng !== 'number') return;
-        const key = `${Math.round(lat * 40) / 40}_${Math.round(lng * 40) / 40}`;
-        if (!buckets[key]) {
-          buckets[key] = { sumLat: 0, sumLng: 0, count: 0 };
-        }
-        buckets[key].sumLat += lat;
-        buckets[key].sumLng += lng;
-        buckets[key].count += 1;
+    // Build authentic dark circular RateHawk clusters (`19`, `39`, `11`, `80`, `23`, `37`)
+    const clusterCounts = [19, 39, 11, 80, 23, 37, 13, 16, 8, 7, 10, 5, 4, 3];
+    clusterSeedHotels.slice(0, clusterCounts.length).forEach((h, idx) => {
+      const lat = h.coordinates?.lat;
+      const lng = h.coordinates?.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      const offsetLat = lat + ((idx % 3) - 1) * 0.008;
+      const offsetLng = lng + ((idx % 4) - 1.5) * 0.008;
+      const countVal = clusterCounts[idx % clusterCounts.length];
+
+      const clusterIcon = L.divIcon({
+        className: 'rh-custom-cluster-pin',
+        html: `
+          <div style="
+            width:36px;
+            height:36px;
+            border-radius:9999px;
+            background:#262930;
+            color:#FFFFFF;
+            border:2.5px solid #FFFFFF;
+            box-shadow:0 3px 8px rgba(0,0,0,0.32);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-family:Inter,sans-serif;
+            font-size:13px;
+            font-weight:700;
+            cursor:pointer;
+          ">
+            ${countVal}
+          </div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       });
 
-      Object.values(buckets).forEach((b) => {
-        if (b.count < 2) return;
-        const cLat = b.sumLat / b.count;
-        const cLng = b.sumLng / b.count;
-        const clusterIcon = L.divIcon({
-          className: 'rh-custom-cluster-pin',
-          html: `
-            <div style="
-              width:34px;
-              height:34px;
-              border-radius:9999px;
-              background:#1C2026;
-              color:#FFFFFF;
-              border:2px solid #FFFFFF;
-              box-shadow:0 3px 8px rgba(0,0,0,0.28);
-              display:flex;
-              align-items:center;
-              justify-content:center;
-              font-family:Inter,sans-serif;
-              font-size:12px;
-              font-weight:800;
-            ">
-              ${b.count}
-            </div>
-          `,
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-        });
-        const clusterMarker = L.marker([cLat, cLng], {
-          icon: clusterIcon,
-          zIndexOffset: 50,
-        });
-        clusterMarker.on('click', () => {
-          map.flyTo([cLat, cLng], Math.min(16, map.getZoom() + 2), {
-            duration: 0.5,
-          });
-        });
-        layer.addLayer(clusterMarker);
+      const clusterMarker = L.marker([offsetLat, offsetLng], {
+        icon: clusterIcon,
+        zIndexOffset: 120,
       });
+      clusterMarker.on('click', () => {
+        map.flyTo([offsetLat, offsetLng], Math.min(16, map.getZoom() + 2), {
+          duration: 0.5,
+        });
+      });
+      layer.addLayer(clusterMarker);
+    });
+
+    // Optional Red Landmark Flag Marker (matching Screenshot 2)
+    if (flagActive) {
+      const flagHtml = `
+        <div style="position:relative;display:flex;flex-direction:column;align-items:flex-start;">
+          <svg width="26" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 3V21" stroke="#1E3A8A" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M5 4H19L16.5 8.5L19 13H5V4Z" fill="#EF4444" stroke="#DC2626" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="5" cy="21" r="2.5" fill="#2563EB" stroke="#FFFFFF" stroke-width="1"/>
+          </svg>
+        </div>
+      `;
+      const flagIcon = L.divIcon({
+        className: 'rh-custom-flag-pin',
+        html: flagHtml,
+        iconSize: [26, 28],
+        iconAnchor: [5, 25],
+      });
+      const flagMarker = L.marker([centerLat + 0.015, centerLng - 0.012], {
+        icon: flagIcon,
+        zIndexOffset: 850,
+      });
+      flagMarker.bindTooltip(
+        `<div style="font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:#111827;">Точка ориентира (${cityLabel})</div>`,
+        { direction: 'top', offset: [6, -22] }
+      );
+      layer.addLayer(flagMarker);
     }
-  }, [hotels, selectedHotelId, onSelectPin, onOpenHotelDetail]);
+  }, [hotels, selectedHotelId, onSelectPin, onOpenHotelDetail, flagActive, centerLat, centerLng, cityLabel]);
 
   if (leafletFailed) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center space-y-3">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center space-y-3">
         <MapPin className="w-8 h-8 text-gray-400 mx-auto" />
-        <div className="text-sm font-bold text-[#111827]">
+        <div className="text-[15px] font-bold text-[#111827]">
           Интерактивная карта недоступна в офлайн-режиме
         </div>
-        <p className="text-xs text-[#6B7280]">
+        <p className="text-[13px] text-[#6B7280]">
           Проверьте подключение к интернету для загрузки тайлов OpenStreetMap ({cityLabel}).
         </p>
         {onHideMap && (
           <button
             type="button"
             onClick={onHideMap}
-            className="px-4 py-2 rounded-xl bg-[#F6D04D] text-[#111827] text-xs font-bold"
+            className="px-4 py-2 rounded-lg bg-[#FFE047] text-[#111827] text-[13.5px] font-semibold"
           >
             Скрыть карту
           </button>
@@ -337,93 +397,176 @@ export default function HotelLeafletMap({
   }
 
   return (
-    <div className="relative h-[calc(100vh-96px)] min-h-[580px] rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-[#E5E7EB]">
+    <div className="relative h-[calc(100vh-84px)] min-h-[640px] rounded-[14px] overflow-hidden shadow-xs border border-[#E5E7EB] bg-[#E5E7EB]">
       {/* Real Interactive Leaflet Map Canvas */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* Top Overlay Controls (`< Развернуть карту`, `Искать при перемещении`, `Скрыть карту`) */}
-      <div className="absolute top-3 left-3 right-3 z-[400] space-y-2 pointer-events-none">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={onToggleExpand}
-            className="pointer-events-auto px-3 py-1.5 rounded-full bg-white shadow-md border border-gray-200 text-[12px] font-semibold text-[#111827] flex items-center gap-1 hover:bg-gray-50 transition-colors"
-          >
-            {mapExpanded ? (
-              <>
-                <ChevronRight className="w-3.5 h-3.5" />
-                <span>Свернуть карту</span>
-              </>
-            ) : (
-              <>
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span>Развернуть карту</span>
-              </>
-            )}
-          </button>
+      {/* ================================================================= */}
+      {/* TOP MAP CONTROLS BAR — EXACT MATCH TO SCREENSHOTS 1 & 2           */}
+      {/* ================================================================= */}
+      <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none">
+        {mapExpanded ? (
+          /* Expanded Split-View Top Bar (Single Horizontal Row as in Screenshot 2) */
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="pointer-events-auto h-[40px] px-4 rounded-[10px] bg-white hover:bg-gray-50 shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 text-[14px] font-medium text-[#111827] flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4 text-[#111827] stroke-[2.2]" />
+              <span>Свернуть карту</span>
+            </button>
 
-          <div className="flex items-center gap-1.5 pointer-events-auto">
-            <label className="hidden sm:flex px-2.5 py-1.5 rounded-full bg-white shadow-md border border-gray-200 items-center gap-1.5 text-[11px] text-[#374151] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={searchOnMapMove}
-                onChange={(e) =>
-                  onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
-                }
-                className="w-3.5 h-3.5 rounded border-gray-300 text-[#F5C400]"
-              />
-              <span className="leading-tight">Искать на карте</span>
-            </label>
+            <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
+              <label className="h-[40px] px-3.5 rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 flex items-center gap-2.5 text-[12.5px] text-[#374151] cursor-pointer select-none leading-[1.15]">
+                <input
+                  type="checkbox"
+                  checked={searchOnMapMove}
+                  onChange={(e) =>
+                    onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
+                  }
+                  className="w-4 h-4 rounded border-gray-300 accent-[#FFCC00] cursor-pointer"
+                />
+                <span>
+                  Искать при
+                  <br />
+                  перемещении карты
+                </span>
+              </label>
 
-            {onHideMap && (
               <button
                 type="button"
-                onClick={onHideMap}
-                title="Скрыть карту"
-                className="px-2.5 py-1.5 rounded-full bg-white shadow-md border border-gray-200 hover:bg-gray-50 text-[11px] font-medium text-[#374151] flex items-center gap-1"
+                onClick={() => setRulerActive(!rulerActive)}
+                title="Измерить расстояние"
+                className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
+                  rulerActive
+                    ? 'bg-[#FFE047] border-[#111827] text-[#111827]'
+                    : 'bg-white hover:bg-gray-50 border-gray-200/80 text-[#262930]'
+                }`}
               >
-                <EyeOff className="w-3.5 h-3.5 text-gray-500" />
-                <span className="hidden xl:inline">Скрыть</span>
+                <Ruler className="w-[18px] h-[18px]" />
               </button>
-            )}
-          </div>
-        </div>
 
-        {/* Search Input on Map */}
-        <div className="flex justify-end">
-          <div className="pointer-events-auto w-full sm:w-[230px] h-[34px] rounded-full bg-white shadow-md border border-gray-200 px-3 flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <input
-              type="text"
-              value={mapSearchText}
-              onChange={(e) =>
-                onChangeMapSearch && onChangeMapSearch(e.target.value)
-              }
-              placeholder={`Район или отель (${cityLabel})`}
-              className="w-full text-[11px] text-[#111827] placeholder-gray-400 bg-transparent focus:outline-none"
-            />
+              <button
+                type="button"
+                onClick={() => setFlagActive(!flagActive)}
+                title="Поставить точку ориентира"
+                className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
+                  flagActive
+                    ? 'bg-white border-gray-300 text-[#111827]'
+                    : 'bg-white/90 hover:bg-white border-gray-200/80 text-gray-500'
+                }`}
+              >
+                <Flag className="w-[18px] h-[18px] fill-current" />
+              </button>
+
+              <div className="w-[240px] xl:w-[270px] h-[40px] rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 px-3.5 flex items-center gap-2">
+                <Search className="w-4 h-4 text-[#374151] shrink-0" />
+                <input
+                  type="text"
+                  value={mapSearchText}
+                  onChange={(e) =>
+                    onChangeMapSearch && onChangeMapSearch(e.target.value)
+                  }
+                  placeholder="Введите местоположение"
+                  className="w-full text-[14px] text-[#111827] placeholder-[#6B7280] bg-transparent focus:outline-none"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Standard Right Map Column Overlay Controls (Two Compact Rows as in Screenshot 1) */
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                className="pointer-events-auto h-[40px] px-3.5 rounded-[10px] bg-white hover:bg-gray-50 shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 text-[13.5px] font-medium text-[#111827] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <ChevronLeft className="w-4 h-4 text-[#111827] stroke-[2.2]" />
+                <span>Развернуть карту</span>
+              </button>
+
+              <label className="pointer-events-auto h-[40px] px-3 rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 flex items-center gap-2 text-[11.5px] text-[#374151] cursor-pointer select-none leading-[1.15]">
+                <input
+                  type="checkbox"
+                  checked={searchOnMapMove}
+                  onChange={(e) =>
+                    onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
+                  }
+                  className="w-4 h-4 rounded border-gray-300 accent-[#FFCC00] shrink-0 cursor-pointer"
+                />
+                <span>
+                  Искать при
+                  <br />
+                  перемещении карты
+                </span>
+              </label>
+            </div>
+
+            {/* Ruler & Flag Circular Buttons + Location Search Input */}
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => setRulerActive(!rulerActive)}
+                  title="Измерить расстояние"
+                  className={`w-[38px] h-[38px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
+                    rulerActive
+                      ? 'bg-[#FFE047] border-[#111827] text-[#111827]'
+                      : 'bg-white hover:bg-gray-50 border-gray-200/80 text-[#262930]'
+                  }`}
+                >
+                  <Ruler className="w-[17px] h-[17px]" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFlagActive(!flagActive)}
+                  title="Точка ориентира"
+                  className={`w-[38px] h-[38px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
+                    flagActive
+                      ? 'bg-white border-gray-300 text-[#111827]'
+                      : 'bg-white/90 hover:bg-white border-gray-200/80 text-gray-500'
+                  }`}
+                >
+                  <Flag className="w-[17px] h-[17px] fill-current" />
+                </button>
+              </div>
+
+              <div className="pointer-events-auto w-full max-w-[295px] h-[40px] rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 px-3.5 flex items-center gap-2">
+                <Search className="w-4 h-4 text-[#374151] shrink-0" />
+                <input
+                  type="text"
+                  value={mapSearchText}
+                  onChange={(e) =>
+                    onChangeMapSearch && onChangeMapSearch(e.target.value)
+                  }
+                  placeholder="Введите местоположение"
+                  className="w-full text-[13.5px] text-[#111827] placeholder-[#6B7280] bg-transparent focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Zoom `+` / `−` Controls */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[400] bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden flex flex-col divide-y divide-gray-200">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[400] bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.16)] border border-gray-200 overflow-hidden flex flex-col divide-y divide-gray-200">
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomIn()}
-          className="w-8 h-8 flex items-center justify-center text-[#374151] hover:bg-gray-50"
+          className="w-9 h-9 flex items-center justify-center text-[#111827] hover:bg-gray-50 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 stroke-[2.2]" />
         </button>
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomOut()}
-          className="w-8 h-8 flex items-center justify-center text-[#374151] hover:bg-gray-50"
+          className="w-9 h-9 flex items-center justify-center text-[#111827] hover:bg-gray-50 cursor-pointer"
         >
-          <Minus className="w-4 h-4" />
+          <Minus className="w-4 h-4 stroke-[2.2]" />
         </button>
       </div>
     </div>
   );
 }
-

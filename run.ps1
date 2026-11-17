@@ -112,7 +112,8 @@ function Invoke-Pytest {
     Push-Location $BackendDir
     if (Test-Path $pytestPath) {
         & $pytestPath -v tests
-    } else {
+    }
+    else {
         & python -m pytest -v tests
     }
     Pop-Location
@@ -141,11 +142,11 @@ function Push-ToGitHub {
 }
 
 switch ($Command.ToLower()) {
-    "all"      { Start-AllServices }
-    "backend"  { Start-BackendOnly }
+    "all" { Start-AllServices }
+    "backend" { Start-BackendOnly }
     "frontend" { Start-FrontendOnly }
-    "test"     { Invoke-Pytest }
-    "push"     { Push-ToGitHub }
+    "test" { Invoke-Pytest }
+    "push" { Push-ToGitHub }
     "menu" {
         while ($true) {
             Show-Header

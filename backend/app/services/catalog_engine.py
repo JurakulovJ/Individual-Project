@@ -377,6 +377,37 @@ CITY_PROFILES: Dict[str, Dict[str, Any]] = {
             ("Palace Hotel Tokyo", "1-1-1 Marunouchi, Chiyoda-ku", 35.6845, 139.7612, 620.0, 9.6, 2790, "BB"),
         ],
     },
+    "bali": {
+        "aliases": ("bali", "бали", "dps", "денпасар", "индонезия", "убуд", "нуса-дуа", "семиньяк"),
+        "city_ru": "Бали",
+        "city_en": "Bali",
+        "country_ru": "Индонезия",
+        "iata": "DPS",
+        "lat": -8.6500,
+        "lng": 115.2167,
+        "districts": [
+            ("Печату и Улувату (Pecatu)", -8.8125, 115.1135, "43 м до пляжа Дримлэнд"),
+            ("Джимбаран (Jimbaran Bay)", -8.7755, 115.1668, "252 м до пляжа Джимбаран"),
+            ("Нуса-Дуа (Nusa Dua)", -8.7945, 115.2305, "212 м до пляжа Нуса Дуа"),
+            ("Семиньяк (Seminyak)", -8.6865, 115.1552, "120 м до пляжа Семиньяк"),
+            ("Убуд (Ubud Central)", -8.5069, 115.2625, "350 м от Королевского дворца Убуда"),
+            ("Кута и Легиан (Kuta)", -8.7185, 115.1686, "150 м до пляжа Кута"),
+            ("Чангу (Canggu Beach)", -8.6595, 115.1305, "180 м до пляжа Бату Болонг"),
+            ("Санур (Sanur Beach)", -8.6912, 115.2628, "95 м до пляжа Санур"),
+        ],
+        "flagship_5": [
+            ("Jumeirah Bali", "Kawasan Pecatu Indah Resort, Jl. Raya Uluwatu, Печату", -8.8112, 115.1138, 622.57, 9.6, 615, "BB"),
+            ("InterContinental Bali Resort by IHG", "Jalan Uluwatu 45, Джимбаран", -8.7768, 115.1662, 197.14, 9.2, 6163, "BB"),
+            ("Nusa Dua Beach Hotel and Spa", "Kawasan Pariwisata Nusa Dua Lot North 4, Нуса-Дуа", -8.7918, 115.2312, 141.57, 9.0, 9532, "BB"),
+            ("Courtyard by Marriott Bali Seminyak Resort", "Jl. Camplung Tanduk No. 103 SP, Семиньяк", -8.6915, 115.1588, 168.0, 9.1, 3420, "BB"),
+            ("The Apurva Kempinski Bali", "Jl. Raya Nusa Dua Selatan, Нуса-Дуа", -8.8285, 115.2156, 485.0, 9.6, 4890, "BB"),
+            ("The Mulia, Mulia Resort & Villas Nusa Dua", "Jl. Raya Nusa Dua Selatan, Kawasan Sawangan", -8.8165, 115.2225, 510.0, 9.5, 5120, "BB"),
+            ("AYANA Resort Bali Jimbaran", "Jl. Karang Mas Sejahtera, Джимбаран", -8.7852, 115.1385, 420.0, 9.4, 6780, "BB"),
+            ("Four Seasons Resort Bali at Sayan Ubud", "Jl. Raya Sayan, Ubud, Гианьяр", -8.5015, 115.2448, 790.0, 9.7, 1420, "BB"),
+            ("Padma Resort Ubud", "Banjar Carik, Desa Puhu, Payangan, Убуд", -8.4025, 115.2585, 315.0, 9.5, 3890, "BB"),
+            ("The St. Regis Bali Resort", "Kawasan Pariwisata, Nusa Dua Lot S6", -8.8115, 115.2268, 690.0, 9.6, 2610, "BB"),
+        ],
+    },
 }
 
 # Brand Naming Templates per Star Category for High-Volume Realistic Catalog Generation

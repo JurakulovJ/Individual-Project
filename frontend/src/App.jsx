@@ -43,15 +43,15 @@ export default function App() {
   // Unified Search Parameters State
   const [searchParams, setSearchParams] = useState({
     hotelDestination: '',
-    selectedCityShort: 'Нью-Йорк',
-    checkIn: '31 окт. 2026 г.',
-    checkOut: '1 нояб. 2026 г.',
+    selectedCityShort: 'Бали',
+    checkIn: '3 мар 2027',
+    checkOut: '10 мар 2027',
     rooms: 1,
     adults: 2,
     children: 0,
-    citizenship: '',
-    stars: [],
-    meals: [],
+    citizenship: 'Узбекистан',
+    stars: [5],
+    meals: ['BB'],
     earlyCheckIn: 'Выберите время',
     lateCheckOut: 'Выберите время',
     freeCancellation: false,
@@ -224,10 +224,11 @@ export default function App() {
       if (!searchParams.hotelDestination) {
         setSearchParams((prev) => ({
           ...prev,
-          hotelDestination: 'Нью-Йорк, Соединенные Штаты Америки',
-          selectedCityShort: 'Нью-Йорк',
+          hotelDestination: 'Бали, Индонезия',
+          selectedCityShort: 'Бали',
           citizenship: prev.citizenship || 'Узбекистан',
           stars: prev.stars.length ? prev.stars : [5],
+          meals: prev.meals.length ? prev.meals : ['BB'],
         }));
       }
       setCurrentView('hotels-results');

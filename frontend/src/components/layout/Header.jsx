@@ -128,7 +128,7 @@ export default function Header({
         {/* Left: Desktop Horizontal Navigation Links (lg:flex) & Mobile/Tablet Active Section Indicator (<1024px) */}
         <div className="flex items-center h-full min-w-0">
           {/* Desktop Navigation Links (>= 1024px) */}
-          <nav className="hidden lg:flex items-center gap-6 h-full">
+          <nav className="hidden lg:flex items-center gap-7 h-full">
             {navItems.map((item) => {
               const isActive = activeTopNav === item.id;
               return (
@@ -141,15 +141,14 @@ export default function Header({
                       setCurrentView('dashboard');
                     }
                   }}
-                  className={`relative h-full flex items-center gap-1 text-[14px] whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'font-medium text-[#111827]'
-                      : 'font-normal text-[#4B5563] hover:text-[#111827]'
-                  }`}
+                  className={`relative h-full flex items-center gap-1.5 text-[15px] whitespace-nowrap transition-colors cursor-pointer ${isActive
+                      ? 'font-semibold text-[#111827]'
+                      : 'font-normal text-[#374151] hover:text-[#111827]'
+                    }`}
                 >
                   <span>{item.label}</span>
                   {item.badge && (
-                    <span className="ml-0.5 -mt-3 px-1.5 py-0.2 min-w-[18px] h-[18px] rounded bg-[#DC2626] text-white text-[11px] font-bold flex items-center justify-center leading-none">
+                    <span className="ml-0.5 -mt-3 px-1.5 py-0.2 min-w-[19px] h-[19px] rounded bg-[#DC2626] text-white text-[11.5px] font-bold flex items-center justify-center leading-none">
                       {item.badge}
                     </span>
                   )}
@@ -192,7 +191,7 @@ export default function Header({
         </div>
 
         {/* Right Controls: Desktop Selectors (hidden on <1024px) + Burger Menu Dropdown */}
-        <div className="flex items-center gap-3 lg:gap-5 text-[13px] text-[#111827] shrink-0">
+        <div className="flex items-center gap-3 lg:gap-5 text-[14px] text-[#111827] shrink-0">
           {/* Desktop-only Secondary Controls (Language, Currency, Support, Profile) */}
           <div className="hidden lg:flex items-center gap-4">
             {/* Language Selector */}
@@ -389,11 +388,10 @@ export default function Header({
             <button
               type="button"
               onClick={() => toggleDropdown('menu')}
-              className={`p-2 rounded-lg transition-colors ${
-                openDropdown === 'menu'
+              className={`p-2 rounded-lg transition-colors ${openDropdown === 'menu'
                   ? 'bg-gray-100 text-[#111827]'
                   : 'hover:bg-gray-100 text-[#374151]'
-              }`}
+                }`}
               title="Меню платформы"
             >
               <Menu className="w-5 h-5" />
@@ -412,11 +410,10 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => handleSelectSearchVertical('hotels')}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'search' && activeVertical === 'hotels'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'search' && activeVertical === 'hotels'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <BedDouble className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Отели и квартиры</span>
@@ -425,11 +422,10 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => handleSelectSearchVertical('flights')}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'search' && activeVertical === 'flights'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'search' && activeVertical === 'flights'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Plane className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Авиабилеты</span>
@@ -438,12 +434,11 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => handleSelectSearchVertical('transfers')}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'search' &&
-                      activeVertical === 'transfers'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'search' &&
+                        activeVertical === 'transfers'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Bus className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Трансферы</span>
@@ -452,12 +447,11 @@ export default function Header({
                   <button
                     type="button"
                     onClick={() => handleSelectSearchVertical('car-rental')}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'search' &&
-                      activeVertical === 'car-rental'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'search' &&
+                        activeVertical === 'car-rental'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Car className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Аренда авто</span>
@@ -493,11 +487,10 @@ export default function Header({
                       setActiveTopNav('trips');
                       setOpenDropdown(null);
                     }}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between transition-colors ${
-                      activeTopNav === 'trips'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center justify-between transition-colors ${activeTopNav === 'trips'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <span className="flex items-center gap-3">
                       <Briefcase className="w-4 h-4 text-gray-500 shrink-0" />
@@ -517,11 +510,10 @@ export default function Header({
                           setActiveTopNav('orders');
                           setOpenDropdown(null);
                         }}
-                        className={`flex-1 px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                          activeTopNav === 'orders'
+                        className={`flex-1 px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'orders'
                             ? 'bg-gray-100 font-semibold text-[#111827]'
                             : 'text-[#374151] hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <ClipboardList className="w-4 h-4 text-gray-500 shrink-0" />
                         <span>Заказы</span>
@@ -534,9 +526,8 @@ export default function Header({
                         className="p-2 text-gray-400 hover:text-gray-700"
                       >
                         <ChevronDown
-                          className={`w-3.5 h-3.5 transition-transform ${
-                            ordersSubFilterOpen ? 'rotate-180' : ''
-                          }`}
+                          className={`w-3.5 h-3.5 transition-transform ${ordersSubFilterOpen ? 'rotate-180' : ''
+                            }`}
                         />
                       </button>
                     </div>
@@ -576,11 +567,10 @@ export default function Header({
                         window.scrollTo({ top: 420, behavior: 'smooth' });
                       }, 60);
                     }}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'reports'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'reports'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <BarChart3 className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Отчётность и финансы</span>
@@ -593,11 +583,10 @@ export default function Header({
                       setActiveTopNav('clients');
                       setOpenDropdown(null);
                     }}
-                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${
-                      activeTopNav === 'clients'
+                    className={`w-full px-3 py-2 rounded-lg text-left text-[13px] flex items-center gap-3 transition-colors ${activeTopNav === 'clients'
                         ? 'bg-gray-100 font-semibold text-[#111827]'
                         : 'text-[#374151] hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Users className="w-4 h-4 text-gray-500 shrink-0" />
                     <span>Клиенты</span>
@@ -621,11 +610,10 @@ export default function Header({
                             key={l.code}
                             type="button"
                             onClick={() => setLanguage(l.label)}
-                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${
-                              language === l.label
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${language === l.label
                                 ? 'bg-[#111827] text-white'
                                 : 'bg-gray-100 text-gray-700'
-                            }`}
+                              }`}
                           >
                             {l.flag} {l.code.toUpperCase()}
                           </button>
@@ -642,11 +630,10 @@ export default function Header({
                             key={c}
                             type="button"
                             onClick={() => setCurrency(c)}
-                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${
-                              currency === c
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium ${currency === c
                                 ? 'bg-[#F6D04D] text-[#111827] font-bold'
                                 : 'bg-gray-100 text-gray-700'
-                            }`}
+                              }`}
                           >
                             {c.split(',')[0]}
                           </button>
