@@ -10,17 +10,34 @@ import {
   Star,
   Loader2,
   Building2,
+  BedDouble,
 } from 'lucide-react';
 import { getHotelOffers, getHotelOfferRedirect } from '../../services/api';
 
 const PLATFORM_BADGE_STYLE = {
-  booking: { bg: '#003580', text: '#FFFFFF', short: 'B.' },
-  agoda: { bg: '#5392F9', text: '#FFFFFF', short: 'Ag' },
-  tripcom: { bg: '#287DFA', text: '#FFFFFF', short: 'Tr' },
+  booking: {
+    bg: '#003580',
+    text: '#FFFFFF',
+    short: 'B.',
+    sub: 'Прямой переход на Booking.com',
+  },
+  agoda: {
+    bg: '#5392F9',
+    text: '#FFFFFF',
+    short: 'Ag',
+    sub: 'Партнёрский тариф Agoda',
+  },
+  tripcom: {
+    bg: '#287DFA',
+    text: '#FFFFFF',
+    short: 'Tr',
+    sub: 'Официальный партнёр Trip.com',
+  },
 };
 
 export default function HotelOffersModal({
   hotel,
+  selectedTariff = null,
   searchParams,
   onClose,
   onOpenFullDetail,
@@ -33,6 +50,7 @@ export default function HotelOffersModal({
   const adultsCount =
     (Number(searchParams?.adults) || 2) + (Number(searchParams?.children) || 0);
   const roomsCount = Number(searchParams?.rooms) || 1;
+  const nightsCount = Number(offersData?.nights || hotel?.nights || 7);
 
   const loadOffers = useCallback(async () => {
     if (!hotel?.id) return;
@@ -51,7 +69,7 @@ export default function HotelOffersModal({
     } catch (err) {
       setError(
         err?.response?.data?.detail ||
-          'Не удалось загрузить предложения партнёров. Попробуйте повторить запрос.'
+        'Не удалось загрузить предложения партнёров. Попробуйте повторить запрос.'
       );
     } finally {
       setLoading(false);
@@ -89,7 +107,6 @@ export default function HotelOffersModal({
         if (win) win.opener = null;
       }
     } catch {
-      // Fallback if network fails momentarily
       if (offer.deep_link) {
         window.open(offer.deep_link, '_blank', 'noopener,noreferrer');
       }
@@ -100,7 +117,31 @@ export default function HotelOffersModal({
 
   if (!hotel) return null;
 
-  const offers = offersData?.offers || [];
+  // Adjust partner offer prices proportionally if a specific room/tariff was clicked
+  const rawOffers = offersData?.offers || [];
+  const priceRatio =
+    selectedTariff?.basePrice && hotel?.total_price
+      ? Number(selectedTariff.basePrice) / Math.max(1, Number(hotel.total_price))
+      : 1.0;
+
+  const offers = rawOffers.map((off) => {
+    const adjustedTotal = Math.round(Number(off.total_price || 0) * priceRatio);
+    const adjustedPerNight = Math.round(
+      adjustedTotal / Math.max(1, nightsCount)
+    );
+    return {
+      ...off,
+      total_price: adjustedTotal,
+      price_per_night: adjustedPerNight,
+      room_name: selectedTariff?.roomTitle || off.room_name,
+      meal_label: selectedTariff?.mealLabel || off.meal_label,
+      free_cancellation:
+        selectedTariff?.freeCancel !== undefined
+          ? selectedTariff.freeCancel
+          : off.free_cancellation,
+    };
+  });
+
   const isMock = offersData?.source === 'mock';
   const partialErrors = offersData?.errors || [];
   const taContent = offersData?.tripadvisor_content;
@@ -108,56 +149,101 @@ export default function HotelOffersModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-[#2d3137]/60 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-[#f4f4f4] rounded-[14px] shadow-[0_18px_50px_rgba(45,49,55,0.32)] w-full max-w-[780px] overflow-hidden flex flex-col max-h-[90vh] text-[#2d3137]"
       >
-        {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between gap-3 bg-[#FAFAFA]">
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
+        {/* ================================================================= */}
+        {/* 1. MODAL HEADER (RATEHAWK CLEAN WHITE CARD WITH GREEN RIBBON)     */}
+        {/* ================================================================= */}
+        <div className="bg-white px-5 py-4 rh-card-shadow flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               {hotel.stars > 0 && (
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-[2px]">
                   {Array.from({ length: hotel.stars }).map((_, i) => (
                     <Star
                       key={i}
-                      className="w-3.5 h-3.5 text-[#F59E0B] fill-current"
+                      className="w-[13px] h-[13px] text-[#F5A623] fill-current"
                     />
                   ))}
                 </div>
               )}
               {isMock && (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                <span className="px-2 py-0.5 rounded bg-[#f8f1da] text-[#2d3137] text-[11px] font-medium">
                   Демо-данные
                 </span>
               )}
             </div>
-            <h3 className="text-[18px] font-extrabold text-[#111827] leading-snug truncate">
+
+            <h3 className="text-[20px] font-bold text-[#2d3137] leading-tight truncate">
               {hotel.name}
             </h3>
-            <p className="text-[12px] text-[#6B7280] truncate">
-              {hotel.address} • {offersData?.nights || hotel.nights || 7} ночей,{' '}
-              {adultsCount} гостей
+
+            <p className="text-[13px] text-[#868686] truncate mt-0.5">
+              {hotel.address} • {searchParams?.checkIn || '3 мар 2027'} —{' '}
+              {searchParams?.checkOut || '10 мар 2027'} ({nightsCount} ночей,{' '}
+              {adultsCount} гостей)
             </p>
+
+            {/* Selected Room & Meal Pill */}
+            <div className="mt-2.5 inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-[8px] bg-[#fdf3dc] text-[13px] text-[#2d3137]">
+              <BedDouble className="w-4 h-4 text-[#2d3137] shrink-0" />
+              <span className="font-semibold">
+                {selectedTariff?.roomTitle ||
+                  hotel.room_type ||
+                  'Двухместный номер Standard / Superior'}
+              </span>
+              <span className="text-[#868686]">•</span>
+              <span className="text-[#1FA614] font-semibold">
+                {selectedTariff?.mealLabel ||
+                  hotel.meal_label ||
+                  'Завтрак включён'}
+              </span>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Right: Green Rating Ribbon + Close Button */}
+          <div className="flex items-start gap-2.5 shrink-0">
+            <div
+              style={{
+                clipPath:
+                  'polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%)',
+              }}
+              className="-mt-4 w-[38px] h-[42px] bg-[#23A916] text-white font-bold text-[15px] flex items-center justify-center pb-1.5 rounded-t-[4px]"
+            >
+              {hotel.rating_label || '9,4'}
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-[#f4f4f4] hover:bg-[#e5e5e5] flex items-center justify-center text-[#868686] hover:text-[#2d3137] transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        {/* ================================================================= */}
+        {/* 2. MODAL BODY (DARK-HEADER RATEHAWK PARTNER SELECTION TABLE)      */}
+        {/* ================================================================= */}
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[14px] font-bold text-[#2d3137]">
+              Выберите официального партнёра для бронирования
+            </span>
+            <span className="text-[12px] text-[#868686]">
+              Цены указаны за {nightsCount} ночей
+            </span>
+          </div>
+
           {/* Partial Provider Errors Warning */}
           {partialErrors.length > 0 && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2.5 text-xs text-amber-900">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="rounded-[10px] bg-[#fdf3dc] p-3 flex items-start gap-2.5 text-[12.5px] text-[#2d3137]">
+              <AlertTriangle className="w-4 h-4 text-[#F5A623] shrink-0 mt-0.5" />
               <div>
                 <div className="font-bold">
                   Частичный ответ внешних платформ:
@@ -171,176 +257,204 @@ export default function HotelOffersModal({
             </div>
           )}
 
-          {/* 1. LOADING SKELETON STATE */}
+          {/* LOADING SKELETON STATE */}
           {loading ? (
-            <div className="space-y-3" data-testid="offers-skeleton">
+            <div
+              className="bg-white rounded-[12px] overflow-hidden rh-card-shadow divide-y divide-[#f4f4f4]"
+              data-testid="offers-skeleton"
+            >
+              <div className="h-9 bg-[#2d3137]" />
               {[1, 2, 3].map((sk) => (
                 <div
                   key={sk}
-                  className="p-4 rounded-xl border border-gray-200 animate-pulse flex items-center justify-between gap-4"
+                  className="p-4 animate-pulse flex items-center justify-between gap-4"
                 >
                   <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 rounded-lg bg-gray-200 shrink-0" />
+                    <div className="w-10 h-10 rounded-[8px] bg-[#e5e5e5] shrink-0" />
                     <div className="space-y-2 flex-1">
-                      <div className="h-4 bg-gray-200 rounded w-1/3" />
-                      <div className="h-3 bg-gray-100 rounded w-2/3" />
+                      <div className="h-4 bg-[#e5e5e5] rounded w-1/3" />
+                      <div className="h-3 bg-[#f4f4f4] rounded w-2/3" />
                     </div>
                   </div>
-                  <div className="w-32 h-10 bg-gray-200 rounded-xl shrink-0" />
+                  <div className="w-36 h-9 bg-[#e5e5e5] rounded-[8px] shrink-0" />
                 </div>
               ))}
             </div>
           ) : error ? (
-            /* 2. ERROR STATE WITH RETRY BUTTON */
-            <div className="rounded-xl border border-red-200 bg-red-50/60 p-6 text-center space-y-3">
-              <AlertTriangle className="w-8 h-8 text-red-500 mx-auto" />
-              <div className="text-sm font-bold text-[#111827]">{error}</div>
+            /* ERROR STATE */
+            <div className="bg-white rounded-[12px] p-6 text-center rh-card-shadow space-y-3">
+              <AlertTriangle className="w-7 h-7 text-[#ce2121] mx-auto" />
+              <div className="text-[14.5px] font-bold text-[#2d3137]">
+                {error}
+              </div>
               <button
                 type="button"
                 onClick={loadOffers}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-xs font-bold shadow-2xs"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#fddd55] hover:bg-[#ffd300] text-[#2d3137] text-[13.5px] font-semibold cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-4 h-4" />
                 <span>Повторить</span>
               </button>
             </div>
           ) : offers.length === 0 ? (
-            /* 3. EMPTY STATE WITH RETRY BUTTON */
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center space-y-3">
-              <Building2 className="w-8 h-8 text-gray-400 mx-auto" />
-              <div className="text-sm font-bold text-[#111827]">
+            /* EMPTY STATE */
+            <div className="bg-white rounded-[12px] p-6 text-center rh-card-shadow space-y-3">
+              <Building2 className="w-7 h-7 text-[#868686] mx-auto" />
+              <div className="text-[14.5px] font-bold text-[#2d3137]">
                 На выбранные даты офферы не найдены
               </div>
               <button
                 type="button"
                 onClick={loadOffers}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] text-[#111827] text-xs font-bold"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-[8px] bg-[#fddd55] hover:bg-[#ffd300] text-[#2d3137] text-[13.5px] font-semibold cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-4 h-4" />
                 <span>Повторить</span>
               </button>
             </div>
           ) : (
-            /* 4. AGGREGATED PARTNER OFFERS LIST */
-            <div className="space-y-2.5">
-              {offers.map((offer) => {
-                const style = PLATFORM_BADGE_STYLE[offer.provider] || {
-                  bg: '#1F2937',
-                  text: '#FFFFFF',
-                  short: offer.provider_label?.slice(0, 2) || 'OT',
-                };
-                const isBusy = redirectingProvider === offer.provider;
+            /* RATEHAWK DARK-HEADER PARTNER TABLE */
+            <div className="bg-white rounded-[12px] overflow-hidden rh-card-shadow">
+              {/* Dark Table Header (`#2d3137`) */}
+              <div className="hidden sm:grid grid-cols-12 items-center bg-[#2d3137] text-white text-[12px] font-medium px-4 py-2.5">
+                <div className="col-span-4">Официальный партнёр</div>
+                <div className="col-span-3 border-l border-white/15 pl-3">
+                  Условия тарифа
+                </div>
+                <div className="col-span-2 border-l border-white/15 pl-3">
+                  Стоимость
+                </div>
+                <div className="col-span-3 border-l border-white/15 pl-3 text-right">
+                  Бронирование
+                </div>
+              </div>
 
-                return (
-                  <div
-                    key={offer.provider}
-                    className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5 ${
-                      offer.is_cheapest
-                        ? 'bg-[#FFFDF5] border-[#F6D04D] shadow-2xs'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {/* Left Platform Info */}
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div
-                        style={{
-                          backgroundColor: style.bg,
-                          color: style.text,
-                        }}
-                        className="w-10 h-10 rounded-xl font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs mt-0.5"
-                      >
-                        {style.short}
+              {/* Partner Rows */}
+              <div className="divide-y divide-[#f4f4f4]">
+                {offers.map((offer) => {
+                  const style = PLATFORM_BADGE_STYLE[offer.provider] || {
+                    bg: '#2d3137',
+                    text: '#FFFFFF',
+                    short: offer.provider_label?.slice(0, 2) || 'OT',
+                    sub: 'Официальный партнёр',
+                  };
+                  const isBusy = redirectingProvider === offer.provider;
+
+                  return (
+                    <div
+                      key={offer.provider}
+                      onClick={() => handlePlatformRedirect(offer)}
+                      className={`grid grid-cols-1 sm:grid-cols-12 items-center gap-3 px-4 py-3.5 transition-colors cursor-pointer ${offer.is_cheapest
+                          ? 'bg-[#fdf3dc]/60 hover:bg-[#fdf3dc]'
+                          : 'bg-white hover:bg-[#fafafa]'
+                        }`}
+                    >
+                      {/* Col 1: Partner Logo & Name */}
+                      <div className="sm:col-span-4 flex items-center gap-3 min-w-0">
+                        <div
+                          style={{
+                            backgroundColor: style.bg,
+                            color: style.text,
+                          }}
+                          className="w-10 h-10 rounded-[8px] font-bold text-[13px] flex items-center justify-center shrink-0"
+                        >
+                          {style.short}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[15px] font-bold text-[#2d3137]">
+                              {offer.provider_label}
+                            </span>
+                            {offer.is_cheapest && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-[#23A916] text-white text-[10.5px] font-bold">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Дешевле всего</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[12px] text-[#868686] truncate">
+                            {style.sub}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[15px] font-extrabold text-[#111827]">
-                            {offer.provider_label}
-                          </span>
-                          {offer.is_cheapest && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#16A34A] text-white text-[10.5px] font-bold">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Дешевле всего</span>
-                            </span>
-                          )}
+                      {/* Col 2: Meal & Cancellation */}
+                      <div className="sm:col-span-3 sm:border-l sm:border-[#f4f4f4] sm:pl-3 space-y-1">
+                        <div className="flex items-center gap-1.5 text-[13px] text-[#1FA614] font-medium">
+                          <Utensils className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{offer.meal_label}</span>
                         </div>
-
-                        <div className="text-[12px] text-[#374151] font-medium truncate">
-                          {offer.room_name}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-3 text-[11px]">
-                          <span className="inline-flex items-center gap-1 text-[#16A34A] font-medium">
-                            <Utensils className="w-3 h-3" />
-                            <span>{offer.meal_label}</span>
-                          </span>
-                          <span
-                            className={`inline-flex items-center gap-1 ${
-                              offer.free_cancellation
-                                ? 'text-[#16A34A] font-medium'
-                                : 'text-[#6B7280]'
+                        <div
+                          className={`flex items-center gap-1.5 text-[12.5px] ${offer.free_cancellation
+                              ? 'text-[#1FA614]'
+                              : 'text-[#868686]'
                             }`}
-                          >
-                            <RotateCcw className="w-3 h-3" />
-                            <span>
-                              {offer.free_cancellation
-                                ? 'Бесплатная отмена'
-                                : 'Спецтариф'}
-                            </span>
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {offer.free_cancellation
+                              ? 'Беспл. отмена'
+                              : 'Без беспл. отмены'}
                           </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Right Price (Per Night + Total) & Redirect Button */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-gray-100">
-                      <div className="text-left sm:text-right">
-                        <div className="text-[12px] font-semibold text-[#4B5563]">
-                          {Number(offer.price_per_night || 0).toLocaleString(
-                            'ru-RU'
-                          )}{' '}
-                          $ <span className="text-[11px] font-normal">/ ночь</span>
-                        </div>
-                        <div className="text-[19px] font-extrabold text-[#111827] leading-tight whitespace-nowrap">
-                          Итого:{' '}
+                      {/* Col 3: Total Price & Per-Night */}
+                      <div className="sm:col-span-2 sm:border-l sm:border-[#f4f4f4] sm:pl-3 min-w-0">
+                        <div className="text-[17.5px] font-bold text-[#2d3137] leading-tight whitespace-nowrap">
                           {Number(offer.total_price || 0).toLocaleString(
                             'ru-RU'
                           )}{' '}
                           $
                         </div>
+                        <div className="text-[11.5px] text-[#868686] truncate">
+                          {Number(offer.price_per_night || 0).toLocaleString(
+                            'ru-RU'
+                          )}{' '}
+                          $ / ночь
+                        </div>
                       </div>
 
-                      <button
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => handlePlatformRedirect(offer)}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#F6D04D] hover:bg-[#F5C400] disabled:opacity-60 text-[#111827] text-[12.5px] font-bold inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap shadow-2xs cursor-pointer"
-                      >
-                        {isBusy ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <>
-                            <span>Перейти на {offer.provider_label}</span>
-                            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                          </>
-                        )}
-                      </button>
+                      {/* Col 4: Redirect CTA Button */}
+                      <div className="sm:col-span-3 sm:border-l sm:border-[#f4f4f4] sm:pl-3 flex justify-end min-w-0">
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlatformRedirect(offer);
+                          }}
+                          className="w-full px-3 py-2 rounded-[8px] bg-[#fddd55] hover:bg-[#ffd300] active:bg-[#fdc500] disabled:opacity-60 text-[#2d3137] text-[13px] font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          {isBusy ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <span className="truncate">
+                                На {offer.provider_label}
+                              </span>
+                              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* Optional Tripadvisor Content Summary */}
+          {/* Tripadvisor Content Strip */}
           {taContent && (
-            <div className="rounded-xl bg-[#F9FAFB] border border-gray-200/80 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-              <div className="space-y-0.5">
-                <div className="font-bold text-[#111827]">
-                  Контент и отзывы Tripadvisor • Оценка {taContent.rating || '9.2'} (
+            <div className="bg-white rounded-[10px] p-3.5 rh-card-shadow flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[12.5px]">
+              <div>
+                <div className="font-bold text-[#2d3137]">
+                  Рейтинг Tripadvisor: {taContent.rating || '9.2'} / 10 (
                   {taContent.num_reviews} отзывов)
                 </div>
-                <p className="text-[#4B5563] line-clamp-2">
+                <p className="text-[#868686] line-clamp-1 mt-0.5">
                   {taContent.description}
                 </p>
               </div>
@@ -349,9 +463,9 @@ export default function HotelOffersModal({
                   href={taContent.web_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#2563EB] hover:underline font-semibold shrink-0 inline-flex items-center gap-1"
+                  className="text-[#4086e4] hover:underline font-medium shrink-0 inline-flex items-center gap-1"
                 >
-                  <span>Отзывы</span>
+                  <span>Отзывы на Tripadvisor</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               )}
@@ -359,10 +473,13 @@ export default function HotelOffersModal({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-5 py-3.5 border-t border-gray-100 bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] text-[#6B7280]">
-            Бронирование завершается напрямую на официальном сайте выбранной платформы
+        {/* ================================================================= */}
+        {/* 3. MODAL FOOTER                                                   */}
+        {/* ================================================================= */}
+        <div className="bg-white px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-[12px] text-[#868686]">
+          <span>
+            Нажмите на выбранного партнёра для безопасного перехода на
+            официальную страницу бронирования
           </span>
           {onOpenFullDetail && (
             <button
@@ -371,9 +488,9 @@ export default function HotelOffersModal({
                 onClose();
                 onOpenFullDetail(hotel);
               }}
-              className="text-[12px] font-bold text-[#2563EB] hover:underline cursor-pointer"
+              className="text-[12.5px] font-medium text-[#4086e4] hover:underline cursor-pointer"
             >
-              Все категории номеров и фото отеля →
+              Все номера отеля →
             </button>
           )}
         </div>
@@ -381,4 +498,3 @@ export default function HotelOffersModal({
     </div>
   );
 }
-

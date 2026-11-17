@@ -75,12 +75,12 @@ export default function QuickStartWidget({ onNavigateToStep }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative h-[46px] px-4.5 rounded-full bg-[#FFE047] hover:bg-[#F6D122] text-[#111827] font-medium text-[14.5px] shadow-[0_6px_20px_rgba(0,0,0,0.18)] flex items-center gap-2.5 transition-transform active:scale-95 cursor-pointer"
+        className="relative h-[46px] px-4.5 rounded-full bg-[#fddd55] hover:bg-[#ffd300] active:bg-[#fdc500] text-[#2d3137] font-medium text-[14.5px] shadow-[0_4px_14px_rgba(45,49,55,0.16)] flex items-center gap-2.5 transition-all active:scale-95 cursor-pointer"
       >
-        <span className="w-[20px] h-[20px] rounded-full border-[1.8px] border-[#111827] flex items-center justify-center">
+        <span className="w-[20px] h-[20px] rounded-full border-[1.8px] border-[#2d3137] flex items-center justify-center">
           <svg
             viewBox="0 0 24 24"
-            className="w-3 h-3 text-[#111827] stroke-current"
+            className="w-3 h-3 text-[#2d3137] stroke-current"
             strokeWidth="3"
             fill="none"
           >
@@ -90,7 +90,7 @@ export default function QuickStartWidget({ onNavigateToStep }) {
         <span>Быстрый старт</span>
 
         {/* Top-Right Notification Counter Badge "2" */}
-        <span className="absolute -top-1.5 -right-1 w-[21px] h-[21px] rounded-full bg-white text-[#6B7280] border border-gray-200 shadow-sm text-[11.5px] font-semibold flex items-center justify-center leading-none">
+        <span className="absolute -top-1.5 -right-1 w-[21px] h-[21px] rounded-full bg-white text-[#868686] shadow-xs text-[11.5px] font-semibold flex items-center justify-center leading-none">
           2
         </span>
       </button>

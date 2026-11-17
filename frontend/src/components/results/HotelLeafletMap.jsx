@@ -11,9 +11,11 @@ import {
 } from 'lucide-react';
 
 const CITY_COORD_LOOKUP = {
-  бали: [-8.65, 115.2167],
-  bali: [-8.65, 115.2167],
-  индонезия: [-8.65, 115.2167],
+  бали: [-8.69, 115.175],
+  bali: [-8.69, 115.175],
+  кута: [-8.722, 115.172],
+  kuta: [-8.722, 115.172],
+  индонезия: [-8.69, 115.175],
   стамбул: [41.015, 28.9795],
   istanbul: [41.015, 28.9795],
   'нью-йорк': [40.7553, -73.9832],
@@ -53,7 +55,7 @@ function resolveCenterCoords(cityCenter, cityLabel, hotels) {
   if (hotels?.length > 0 && hotels[0].coordinates?.lat) {
     return [hotels[0].coordinates.lat, hotels[0].coordinates.lng];
   }
-  return [41.015, 28.9795];
+  return [-8.69, 115.175];
 }
 
 export default function HotelLeafletMap({
@@ -83,26 +85,35 @@ export default function HotelLeafletMap({
   const [rulerActive, setRulerActive] = useState(false);
   const [flagActive, setFlagActive] = useState(true);
 
-  // Ensure Leaflet is loaded
+  // Ensure Leaflet CSS & JS are loaded (with automatic jsDelivr fallback)
   useEffect(() => {
     if (window.L) {
       setLeafletReady(true);
       return;
     }
+
+    if (!document.querySelector('link[href*="leaflet.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
     let script = document.querySelector('script[data-leaflet-fallback]');
     if (!script) {
       script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
       script.async = true;
       script.dataset.leafletFallback = 'true';
       script.onload = () => setLeafletReady(true);
       script.onerror = () => setLeafletFailed(true);
       document.head.appendChild(script);
     }
+
     const timer = setTimeout(() => {
       if (window.L) setLeafletReady(true);
       else setLeafletFailed(true);
-    }, 5000);
+    }, 6000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -112,15 +123,19 @@ export default function HotelLeafletMap({
     hotels
   );
 
-  // Initialize Leaflet Map instance once
+  // Initialize Leaflet Map instance with official free OpenStreetMap tiles
   useEffect(() => {
     if (!leafletReady || !mapContainerRef.current || mapInstanceRef.current) {
       return;
     }
     const L = window.L;
-    const isBali = String(cityLabel || '').toLowerCase().includes('бали') ||
-      String(cityLabel || '').toLowerCase().includes('bali');
-    const initialZoom = isBali ? 10 : 12;
+    const lowCity = String(cityLabel || '').toLowerCase();
+    const isIslandRegion =
+      lowCity.includes('бали') ||
+      lowCity.includes('bali') ||
+      lowCity.includes('кута') ||
+      lowCity.includes('пхукет');
+    const initialZoom = isIslandRegion ? 11 : 12;
 
     const map = L.map(mapContainerRef.current, {
       center: [centerLat, centerLng],
@@ -129,9 +144,10 @@ export default function HotelLeafletMap({
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Official OpenStreetMap Standard Tile Server (Zero API Key Required)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">Участники OpenStreetMap</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Участники OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(map);
 
@@ -152,21 +168,36 @@ export default function HotelLeafletMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafletReady]);
 
-  // Invalidate size when mapExpanded toggles so tiles fill full width cleanly
+  // Automatically resize OpenStreetMap canvas whenever container or screen width changes
   useEffect(() => {
-    if (mapInstanceRef.current) {
-      const t1 = setTimeout(() => {
-        mapInstanceRef.current?.invalidateSize();
-      }, 60);
-      const t2 = setTimeout(() => {
-        mapInstanceRef.current?.invalidateSize();
-      }, 240);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const handleResize = () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
+      }
+    };
+
+    let observer = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        handleResize();
+      });
+      observer.observe(container);
     }
-  }, [mapExpanded]);
+
+    window.addEventListener('resize', handleResize);
+    const t1 = setTimeout(handleResize, 80);
+    const t2 = setTimeout(handleResize, 250);
+
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [mapExpanded, leafletReady]);
 
   // Fly to new city coordinates whenever searched city changes
   useEffect(() => {
@@ -175,9 +206,15 @@ export default function HotelLeafletMap({
     const nextKey = `${centerLat.toFixed(3)},${centerLng.toFixed(3)}`;
     if (lastCenterKeyRef.current !== nextKey) {
       lastCenterKeyRef.current = nextKey;
-      const isBali = String(cityLabel || '').toLowerCase().includes('бали') ||
-        String(cityLabel || '').toLowerCase().includes('bali');
-      map.flyTo([centerLat, centerLng], isBali ? 10 : 12, { duration: 0.75 });
+      const lowCity = String(cityLabel || '').toLowerCase();
+      const isIslandRegion =
+        lowCity.includes('бали') ||
+        lowCity.includes('bali') ||
+        lowCity.includes('кута') ||
+        lowCity.includes('пхукет');
+      map.flyTo([centerLat, centerLng], isIslandRegion ? 11 : 12, {
+        duration: 0.75,
+      });
     }
   }, [centerLat, centerLng, cityLabel]);
 
@@ -202,7 +239,7 @@ export default function HotelLeafletMap({
     };
   }, [searchOnMapMove, onBoundsFilter]);
 
-  // Plot custom RateHawk HTML price callouts (`1606 $`) + dark cluster badges (`19`, `39`, `80`) + optional Flag marker
+  // Plot custom RateHawk HTML price callouts (`1606 $`) + dark cluster badges (`419`, `224`, `184`, `19`, `39`) + Flag marker
   useEffect(() => {
     const L = window.L;
     const map = mapInstanceRef.current;
@@ -212,8 +249,8 @@ export default function HotelLeafletMap({
     layer.clearLayers();
     if (!hotels || hotels.length === 0) return;
 
-    const individualHotels = hotels.slice(0, 12);
-    const clusterSeedHotels = hotels.slice(6);
+    const individualHotels = hotels.slice(0, 10);
+    const clusterSeedHotels = hotels.slice(4);
 
     individualHotels.forEach((hotel) => {
       const lat = hotel.coordinates?.lat;
@@ -224,8 +261,7 @@ export default function HotelLeafletMap({
       const priceText = `${Number(hotel.total_price || 0).toLocaleString('ru-RU')} $`;
 
       const pillHtml = `
-        <div style="display:flex;flex-direction:column;align-items:center;transform:${
-          isActive ? 'scale(1.12)' : 'scale(1)'
+        <div style="display:flex;flex-direction:column;align-items:center;transform:${isActive ? 'scale(1.12)' : 'scale(1)'
         };transition:transform 0.15s ease;">
           <div style="
             display:inline-flex;
@@ -296,14 +332,14 @@ export default function HotelLeafletMap({
       layer.addLayer(marker);
     });
 
-    // Build authentic dark circular RateHawk clusters (`19`, `39`, `11`, `80`, `23`, `37`)
-    const clusterCounts = [19, 39, 11, 80, 23, 37, 13, 16, 8, 7, 10, 5, 4, 3];
+    // Build authentic dark circular RateHawk clusters (`419`, `224`, `184`, `13`, `18`, `39`, `23`)
+    const clusterCounts = [419, 224, 184, 13, 18, 39, 23, 37, 19, 11, 8, 5];
     clusterSeedHotels.slice(0, clusterCounts.length).forEach((h, idx) => {
       const lat = h.coordinates?.lat;
       const lng = h.coordinates?.lng;
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
-      const offsetLat = lat + ((idx % 3) - 1) * 0.008;
-      const offsetLng = lng + ((idx % 4) - 1.5) * 0.008;
+      const offsetLat = lat + ((idx % 3) - 1) * 0.007;
+      const offsetLng = lng + ((idx % 4) - 1.5) * 0.007;
       const countVal = clusterCounts[idx % clusterCounts.length];
 
       const clusterIcon = L.divIcon({
@@ -321,7 +357,7 @@ export default function HotelLeafletMap({
             align-items:center;
             justify-content:center;
             font-family:Inter,sans-serif;
-            font-size:13px;
+            font-size:12.5px;
             font-weight:700;
             cursor:pointer;
           ">
@@ -344,7 +380,7 @@ export default function HotelLeafletMap({
       layer.addLayer(clusterMarker);
     });
 
-    // Optional Red Landmark Flag Marker (matching Screenshot 2)
+    // Red Landmark Flag Marker (matching the red flag in the reference screenshot)
     if (flagActive) {
       const flagHtml = `
         <div style="position:relative;display:flex;flex-direction:column;align-items:flex-start;">
@@ -361,24 +397,33 @@ export default function HotelLeafletMap({
         iconSize: [26, 28],
         iconAnchor: [5, 25],
       });
-      const flagMarker = L.marker([centerLat + 0.015, centerLng - 0.012], {
+      const flagMarker = L.marker([centerLat - 0.012, centerLng - 0.008], {
         icon: flagIcon,
         zIndexOffset: 850,
       });
       flagMarker.bindTooltip(
-        `<div style="font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:#111827;">Точка ориентира (${cityLabel})</div>`,
+        `<div style="font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:#111827;">Центр (${cityLabel})</div>`,
         { direction: 'top', offset: [6, -22] }
       );
       layer.addLayer(flagMarker);
     }
-  }, [hotels, selectedHotelId, onSelectPin, onOpenHotelDetail, flagActive, centerLat, centerLng, cityLabel]);
+  }, [
+    hotels,
+    selectedHotelId,
+    onSelectPin,
+    onOpenHotelDetail,
+    flagActive,
+    centerLat,
+    centerLng,
+    cityLabel,
+  ]);
 
   if (leafletFailed) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 text-center space-y-3">
         <MapPin className="w-8 h-8 text-gray-400 mx-auto" />
         <div className="text-[15px] font-bold text-[#111827]">
-          Интерактивная карта недоступна в офлайн-режиме
+          Интерактивная карта OpenStreetMap недоступна в офлайн-режиме
         </div>
         <p className="text-[13px] text-[#6B7280]">
           Проверьте подключение к интернету для загрузки тайлов OpenStreetMap ({cityLabel}).
@@ -397,172 +442,106 @@ export default function HotelLeafletMap({
   }
 
   return (
-    <div className="relative h-[calc(100vh-84px)] min-h-[640px] rounded-[14px] overflow-hidden shadow-xs border border-[#E5E7EB] bg-[#E5E7EB]">
-      {/* Real Interactive Leaflet Map Canvas */}
+    <div className="relative w-full h-[calc(100vh-66px)] min-h-[600px] rounded-l-[12px] lg:rounded-r-none overflow-hidden rh-card-shadow bg-[#CBE7F5]">
+      {/* Real Interactive OpenStreetMap Canvas (grows dynamically with screen width) */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* ================================================================= */}
-      {/* TOP MAP CONTROLS BAR — EXACT MATCH TO SCREENSHOTS 1 & 2           */}
+      {/* SINGLE-ROW RESPONSIVE TOP MAP OVERLAY BAR                         */}
+      {/* (`< Развернуть карту` | `Искать при перемещении` | Ruler | Flag | Search) */}
       {/* ================================================================= */}
       <div className="absolute top-3 left-3 right-3 z-[400] pointer-events-none">
-        {mapExpanded ? (
-          /* Expanded Split-View Top Bar (Single Horizontal Row as in Screenshot 2) */
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Left: Expand / Collapse Map Button */}
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="pointer-events-auto h-[40px] px-3.5 rounded-[10px] bg-white hover:bg-[#f4f4f4] shadow-[0_2px_8px_rgba(45,49,55,0.12)] text-[13.5px] font-medium text-[#2d3137] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+          >
+            {mapExpanded ? (
+              <>
+                <ChevronRight className="w-4 h-4 text-[#2d3137] stroke-[2.2]" />
+                <span>Свернуть карту</span>
+              </>
+            ) : (
+              <>
+                <ChevronLeft className="w-4 h-4 text-[#2d3137] stroke-[2.2]" />
+                <span>Развернуть карту</span>
+              </>
+            )}
+          </button>
+
+          {/* Right: Move-Search Checkbox + Ruler + Flag + Location Search Input */}
+          <div className="flex flex-wrap items-center justify-end gap-2 pointer-events-auto">
+            <label className="h-[40px] px-3 rounded-[10px] bg-white shadow-[0_2px_8px_rgba(45,49,55,0.12)] flex items-center gap-2 text-[11.5px] text-[#2d3137] cursor-pointer select-none leading-[1.15]">
+              <input
+                type="checkbox"
+                checked={searchOnMapMove}
+                onChange={(e) =>
+                  onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
+                }
+                className="w-4 h-4 rounded accent-[#fddd55] shrink-0 cursor-pointer"
+              />
+              <span>
+                Искать при
+                <br />
+                перемещении карты
+              </span>
+            </label>
+
             <button
               type="button"
-              onClick={onToggleExpand}
-              className="pointer-events-auto h-[40px] px-4 rounded-[10px] bg-white hover:bg-gray-50 shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 text-[14px] font-medium text-[#111827] flex items-center gap-1.5 transition-colors cursor-pointer"
+              onClick={() => setRulerActive(!rulerActive)}
+              title="Измерить расстояние"
+              className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(45,49,55,0.12)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${rulerActive
+                  ? 'bg-[#fddd55] text-[#2d3137]'
+                  : 'bg-white hover:bg-[#f4f4f4] text-[#2d3137]'
+                }`}
             >
-              <ChevronRight className="w-4 h-4 text-[#111827] stroke-[2.2]" />
-              <span>Свернуть карту</span>
+              <Ruler className="w-[17px] h-[17px]" />
             </button>
 
-            <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-              <label className="h-[40px] px-3.5 rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 flex items-center gap-2.5 text-[12.5px] text-[#374151] cursor-pointer select-none leading-[1.15]">
-                <input
-                  type="checkbox"
-                  checked={searchOnMapMove}
-                  onChange={(e) =>
-                    onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
-                  }
-                  className="w-4 h-4 rounded border-gray-300 accent-[#FFCC00] cursor-pointer"
-                />
-                <span>
-                  Искать при
-                  <br />
-                  перемещении карты
-                </span>
-              </label>
-
-              <button
-                type="button"
-                onClick={() => setRulerActive(!rulerActive)}
-                title="Измерить расстояние"
-                className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
-                  rulerActive
-                    ? 'bg-[#FFE047] border-[#111827] text-[#111827]'
-                    : 'bg-white hover:bg-gray-50 border-gray-200/80 text-[#262930]'
+            <button
+              type="button"
+              onClick={() => setFlagActive(!flagActive)}
+              title="Точка ориентира"
+              className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(45,49,55,0.12)] flex items-center justify-center transition-colors cursor-pointer shrink-0 ${flagActive
+                  ? 'bg-white text-[#2d3137]'
+                  : 'bg-white/90 hover:bg-white text-[#868686]'
                 }`}
-              >
-                <Ruler className="w-[18px] h-[18px]" />
-              </button>
+            >
+              <Flag className="w-[17px] h-[17px] fill-current" />
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setFlagActive(!flagActive)}
-                title="Поставить точку ориентира"
-                className={`w-[40px] h-[40px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
-                  flagActive
-                    ? 'bg-white border-gray-300 text-[#111827]'
-                    : 'bg-white/90 hover:bg-white border-gray-200/80 text-gray-500'
-                }`}
-              >
-                <Flag className="w-[18px] h-[18px] fill-current" />
-              </button>
-
-              <div className="w-[240px] xl:w-[270px] h-[40px] rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 px-3.5 flex items-center gap-2">
-                <Search className="w-4 h-4 text-[#374151] shrink-0" />
-                <input
-                  type="text"
-                  value={mapSearchText}
-                  onChange={(e) =>
-                    onChangeMapSearch && onChangeMapSearch(e.target.value)
-                  }
-                  placeholder="Введите местоположение"
-                  className="w-full text-[14px] text-[#111827] placeholder-[#6B7280] bg-transparent focus:outline-none"
-                />
-              </div>
+            <div className="w-[210px] xl:w-[245px] 2xl:w-[270px] h-[40px] rounded-[10px] bg-white shadow-[0_2px_8px_rgba(45,49,55,0.12)] px-3 flex items-center gap-2">
+              <Search className="w-4 h-4 text-[#868686] shrink-0" />
+              <input
+                type="text"
+                value={mapSearchText}
+                onChange={(e) =>
+                  onChangeMapSearch && onChangeMapSearch(e.target.value)
+                }
+                placeholder="Введите местоположение"
+                className="w-full text-[13.5px] text-[#2d3137] placeholder-[#afafaf] bg-transparent focus:outline-none"
+              />
             </div>
           </div>
-        ) : (
-          /* Standard Right Map Column Overlay Controls (Two Compact Rows as in Screenshot 1) */
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={onToggleExpand}
-                className="pointer-events-auto h-[40px] px-3.5 rounded-[10px] bg-white hover:bg-gray-50 shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 text-[13.5px] font-medium text-[#111827] flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-              >
-                <ChevronLeft className="w-4 h-4 text-[#111827] stroke-[2.2]" />
-                <span>Развернуть карту</span>
-              </button>
-
-              <label className="pointer-events-auto h-[40px] px-3 rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 flex items-center gap-2 text-[11.5px] text-[#374151] cursor-pointer select-none leading-[1.15]">
-                <input
-                  type="checkbox"
-                  checked={searchOnMapMove}
-                  onChange={(e) =>
-                    onToggleSearchOnMove && onToggleSearchOnMove(e.target.checked)
-                  }
-                  className="w-4 h-4 rounded border-gray-300 accent-[#FFCC00] shrink-0 cursor-pointer"
-                />
-                <span>
-                  Искать при
-                  <br />
-                  перемещении карты
-                </span>
-              </label>
-            </div>
-
-            {/* Ruler & Flag Circular Buttons + Location Search Input */}
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 pointer-events-auto">
-                <button
-                  type="button"
-                  onClick={() => setRulerActive(!rulerActive)}
-                  title="Измерить расстояние"
-                  className={`w-[38px] h-[38px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
-                    rulerActive
-                      ? 'bg-[#FFE047] border-[#111827] text-[#111827]'
-                      : 'bg-white hover:bg-gray-50 border-gray-200/80 text-[#262930]'
-                  }`}
-                >
-                  <Ruler className="w-[17px] h-[17px]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFlagActive(!flagActive)}
-                  title="Точка ориентира"
-                  className={`w-[38px] h-[38px] rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] border flex items-center justify-center transition-colors cursor-pointer ${
-                    flagActive
-                      ? 'bg-white border-gray-300 text-[#111827]'
-                      : 'bg-white/90 hover:bg-white border-gray-200/80 text-gray-500'
-                  }`}
-                >
-                  <Flag className="w-[17px] h-[17px] fill-current" />
-                </button>
-              </div>
-
-              <div className="pointer-events-auto w-full max-w-[295px] h-[40px] rounded-[10px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.15)] border border-gray-200/80 px-3.5 flex items-center gap-2">
-                <Search className="w-4 h-4 text-[#374151] shrink-0" />
-                <input
-                  type="text"
-                  value={mapSearchText}
-                  onChange={(e) =>
-                    onChangeMapSearch && onChangeMapSearch(e.target.value)
-                  }
-                  placeholder="Введите местоположение"
-                  className="w-full text-[13.5px] text-[#111827] placeholder-[#6B7280] bg-transparent focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Right Zoom `+` / `−` Controls */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[400] bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.16)] border border-gray-200 overflow-hidden flex flex-col divide-y divide-gray-200">
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[400] bg-white rounded-[10px] shadow-[0_2px_8px_rgba(45,49,55,0.14)] overflow-hidden flex flex-col divide-y divide-[#f4f4f4]">
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomIn()}
-          className="w-9 h-9 flex items-center justify-center text-[#111827] hover:bg-gray-50 cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center text-[#2d3137] hover:bg-[#f4f4f4] cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.2]" />
         </button>
         <button
           type="button"
           onClick={() => mapInstanceRef.current?.zoomOut()}
-          className="w-9 h-9 flex items-center justify-center text-[#111827] hover:bg-gray-50 cursor-pointer"
+          className="w-9 h-9 flex items-center justify-center text-[#2d3137] hover:bg-[#f4f4f4] cursor-pointer"
         >
           <Minus className="w-4 h-4 stroke-[2.2]" />
         </button>

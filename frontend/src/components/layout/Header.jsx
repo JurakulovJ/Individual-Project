@@ -124,7 +124,7 @@ export default function Header({
       )}
 
       {/* 2. MAIN 64PX ENTERPRISE HEADER BAR */}
-      <div className="max-w-[1440px] mx-auto px-4 lg:px-6 h-[64px] flex items-center justify-between gap-4">
+      <div className="w-full px-4 lg:px-6 h-[64px] flex items-center justify-between gap-4">
         {/* Left: Desktop Horizontal Navigation Links (lg:flex) & Mobile/Tablet Active Section Indicator (<1024px) */}
         <div className="flex items-center h-full min-w-0">
           {/* Desktop Navigation Links (>= 1024px) */}
